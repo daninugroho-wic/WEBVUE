@@ -24,6 +24,27 @@ const router = createRouter({
       name: 'instagram',
       component: () => import('../views/InstagramView.vue'),
     },
+    // ROLE
+    {
+      path: '/admin',
+      name: 'admin',
+      component: () => import('../views/AdminView.vue'),
+    },
+    {
+      path: '/helpdesk',
+      name: 'helpdesk',
+      component: () => import('../views/HelpdeskView.vue'),
+    },
+    {
+      path: '/login',
+      name: 'login',
+      component: () => import('../views/LoginView.vue'),
+    },
+    {
+      path: '/register',
+      name: 'register',
+      component: () => import('../views/RegisterView.vue'),
+    },
   ],
 })
 
