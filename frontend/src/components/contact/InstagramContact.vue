@@ -18,7 +18,7 @@
   
   <script setup>
   import { ref } from "vue";
-  
+   
   const contacts = ref([
     { name: "Dani Nugroho", lastMessage: "Halo, apa kabar?" },
     { name: "Wicaksono", lastMessage: "Lagi sibuk?" },
