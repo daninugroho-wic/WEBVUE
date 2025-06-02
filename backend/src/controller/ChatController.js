@@ -1,160 +1,179 @@
-const { client, receivedMessage } = require('../../config/webwhatsapp.js');
-const Message = require('../models/Message.js'); // Model untuk pesan
-const Conversation = require('../models/Conversation.js'); // Model untuk percakapan
-const CompanyPhone = require('../models/CompanyPhone.js'); // Model untuk nomor perusahaan
-const User = require('../models/User.js'); // Model untuk pengguna
+const { client } = require('../../config/webwhatsapp.js');
+const Message = require('../models/Message.js');
+const Conversation = require('../models/Conversation.js');
+const CompanyPhone = require('../models/CompanyPhone.js');
+const User = require('../models/User.js');
 
-// _______________________________________________________ Fungsi MESSAGE.JS
-
-// Mengirim pesan melalui WhatsApp dan menyimpannya ke database
+// Kirim pesan WA dan simpan ke DB
 const sendMessage = async (req, res) => {
-    const { number, message, conversationId, send_by = 'system' } = req.body;
-    const chatId = `${number}@c.us`; // Format WhatsApp ID
+  const { number, message, conversationId, send_by = 'system' } = req.body;
+  const chatId = `${number}@c.us`;
 
-    try {
-        // Kirim pesan ke WhatsApp
-        await client.sendMessage(chatId, message);
+  try {
+    await client.sendMessage(chatId, message);
 
-        // Simpan pesan ke database
-        const newMessage = new Message({
-            conversation_id: conversationId,
-            text: message, // Gunakan "text" konsisten
-            sender_id: send_by || 'system', // Tambahkan sender_id
-            receiver_id: chatId, // Tambahkan receiver_id
-            status: 'sent',
-            send_by,
-        });
-        await newMessage.save();
-        console.log('Pesan terkirim dan disimpan:', newMessage);
+    const newMessage = new Message({
+      conversation_id: conversationId,
+      text: message,
+      sender_id: send_by || 'system',
+      receiver_id: chatId,
+      status: 'sent',
+      send_by,
+      timestamp: Date.now(),
+    });
+    await newMessage.save();
 
-        res.status(200).json({ success: true, message: "Pesan terkirim dan disimpan" });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
+    res.status(200).json({ success: true, message: "Pesan terkirim dan disimpan" });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 };
 
-// Menambahkan pesan baru ke database
+// Simpan pesan baru ke DB (umum)
 const newMessage = async (req, res) => {
-    try {
-        const { conversation_id, text, sender_id, receiver_id, send_by } = req.body;
+  try {
+    const { conversation_id, text, sender_id, receiver_id, send_by } = req.body;
 
-        const newMessage = new Message({
-            conversation_id,
-            text,
-            sender_id,
-            receiver_id,
-            send_by: send_by || 'system',
-        });
-        await newMessage.save();
-        res.json({ success: true, message: newMessage });
-    } catch (err) {
-        res.status(500).json({ success: false, error: "Gagal menyimpan pesan" });
-    }
+    const newMsg = new Message({
+      conversation_id,
+      text,
+      sender_id,
+      receiver_id,
+      send_by: send_by || 'system',
+      timestamp: Date.now(),
+    });
+    await newMsg.save();
+
+    res.json({ success: true, message: newMsg });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Gagal menyimpan pesan" });
+  }
 };
 
-// Mengambil pesan dan mengembalikannya
+// Ambil semua pesan (urut naik berdasarkan waktu)
 const messages = async (req, res) => {
-    try {
-        const messages = await Message.find().sort({ created_at: 1 }); // Perbaiki urutan berdasarkan created_at
-        res.json({ success: true, messages });
-    } catch (err) {
-        res.status(500).json({ success: false, error: "Gagal mengambil pesan" });
-    }
+  try {
+    const allMessages = await Message.find().sort({ timestamp: 1 });
+    res.json({ success: true, messages: allMessages });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Gagal mengambil pesan" });
+  }
 };
 
-// Mengambil pesan masuk yang diterima
+// Ambil pesan masuk yang belum diambil (dari array receivedMessage)
 const getReceivedMessages = (req, res) => {
-    try {
-        const messagesToSend = [...receivedMessage];
+  try {
+    const messagesToSend = [...receivedMessage];
+    receivedMessage.length = 0;
 
-        receivedMessage.length = 0; // Kosongkan array setelah dikirim
-        res.json({
-            success: true,
-            messages: messagesToSend.map(msg => ({
-                sender_id: msg.from,
-                text: msg.body,
-                date: msg.date,
-                time: msg.time,
-                status: 'received',
-            })),
-        });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
+    res.json({
+      success: true,
+      messages: messagesToSend.map(msg => ({
+        sender_id: msg.from,
+        text: msg.body,
+        date: msg.date,
+        time: msg.time,
+        status: 'received',
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 };
 
+// Ambil semua percakapan unik dan pesan terakhirnya (untuk daftar kontak)
+const getConversations = async (req, res) => {
+  try {
+    const conversations = await Conversation.find().lean();
 
+    const results = await Promise.all(conversations.map(async (conv) => {
+      const lastMsg = await Message.findOne({ conversation_id: conv._id }).sort({ timestamp: -1 }).lean();
+      return {
+        id: conv._id,
+        contactNumber: conv.sender,
+        lastMessage: lastMsg ? lastMsg.text : '',
+        lastTimestamp: lastMsg ? lastMsg.timestamp : null,
+      };
+    }));
 
+    results.sort((a, b) => (b.lastTimestamp || 0) - (a.lastTimestamp || 0));
 
+    res.json({ success: true, conversations: results });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Gagal mengambil conversations', error });
+  }
+};
 
+// Ambil pesan berdasarkan sender tertentu (chat per kontak)
+const getMessagesBySender = async (req, res) => {
+  try {
+    const sender = req.query.sender;
+    if (!sender) {
+      return res.status(400).json({ success: false, error: "Parameter 'sender' wajib diisi" });
+    }
 
+    const messages = await Message.find({ sender_id: sender }).sort({ timestamp: 1 });
+    res.json({ success: true, messages });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Gagal mengambil pesan berdasarkan sender' });
+  }
+};
 
-
-// _______________________________________________________ Fungsi COMPANYPHONE.JS
-
-// Menambahkan nomor perusahaan ke database
+// Tambah nomor perusahaan
 const companyPhone = async (req, res) => {
-    const { phone_number, description, name } = req.body;
+  const { phone_number, description, name } = req.body;
 
-    try {
-        const phone = new CompanyPhone({ phone_number, description, name });
-        await phone.save();
-        res.status(201).json({ success: true, phone });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
+  try {
+    const phone = new CompanyPhone({ phone_number, description, name });
+    await phone.save();
+    res.status(201).json({ success: true, phone });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 };
 
-// _______________________________________________________ Fungsi CONVERSATION.JS
-
-// Membuat percakapan baru
+// Buat percakapan baru
 const conversation = async (req, res) => {
-    const { sender, receiver } = req.body;
+  const { sender, receiver } = req.body;
 
-    try {
-        const newConversation = new Conversation({ sender, receiver });
-        await newConversation.save();
-        res.status(201).json({ success: true, conversation: newConversation });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
+  try {
+    const newConversation = new Conversation({ sender, receiver });
+    await newConversation.save();
+    res.status(201).json({ success: true, conversation: newConversation });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 };
 
-// Mengambil semua percakapan
+// Ambil semua percakapan
 const saveConversation = async (req, res) => {
-    try {
-        const conversations = await Conversation.find();
-        res.status(200).json({ success: true, conversations });
-    } catch (err) {
-        res.status(500).json({ success: false, error: "Gagal mengambil percakapan" });
-    }
+  try {
+    const conversations = await Conversation.find();
+    res.status(200).json({ success: true, conversations });
+  } catch (err) {
+    res.status(500).json({ success: false, error: "Gagal mengambil percakapan" });
+  }
 };
 
-// _______________________________________________________ Fungsi USER.JS
-
-// Mengambil semua pengguna
+// Ambil semua pengguna (disini saya perbaiki supaya hanya mengambil, bukan buat user baru)
 const getAllUsers = async (req, res) => {
-    const { name, role } = req.body;
-
-    try {
-        const user = new User({ name, role });
-        await user.save();
-        res.status(201).json({ success: true, user });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
+  try {
+    const users = await User.find();
+    res.status(200).json({ success: true, users });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 };
-
-
-// Ekspor Modul
 
 module.exports = {
-    sendMessage,
-    getReceivedMessages,
-    companyPhone,
-    conversation,
-    saveConversation,
-    getAllUsers,
-    newMessage,
-    messages,
+  sendMessage,
+  getReceivedMessages,
+  companyPhone,
+  conversation,
+  saveConversation,
+  getAllUsers,
+  newMessage,
+  messages,
+  getConversations,
+  getMessagesBySender,
 };

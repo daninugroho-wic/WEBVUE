@@ -3,115 +3,92 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const { client } = require('./config/webwhatsapp.js');
+const http = require('http');
+const { Server } = require('socket.io');
 
-const { IgApiClient } = require('instagram-private-api');
-const { Telegraf } = require('telegraf');
+const { initializeWhatsApp, whatsappEvents } = require('./config/webwhatsapp');
+const instagramService = require('./config/instagram');
+const telegramService = require('./config/telegram');
 
-// Import Controller
 const {
-    companyPhone,
-    conversation,
-    saveConversation,
-    sendMessage,
-    getReceivedMessages,
-    newMessage,
-    messages,
-    getAllUsers,
-} = require('./src/controller/ChatController.js');
+  companyPhone,
+  conversation,
+  saveConversation,
+  sendMessage,
+  getReceivedMessages,
+  newMessage,
+  messages,
+  getAllUsers,
+} = require('./src/controller/ChatController');
 
-// Import Model
-const User = require('./src/models/User.js');
-
-// Inisialisasi Aplikasi
 const app = express();
-const port = 3000;
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: { origin: '*' }
+});
 
-// Middleware
-app.use(cors()); // Mengaktifkan CORS
-app.use(express.json()); // Parsing body JSON
+const PORT = process.env.PORT || 3000;
 
-// Koneksi ke MongoDB
-mongoose
-    .connect('mongodb://localhost:27017/chatvue', {})
-    .then(() => console.log('Koneksi ke MongoDB berhasil'))
-    .catch((err) => console.error('Gagal koneksi ke MongoDB:', err));
+app.use(cors());
+app.use(express.json());
 
-// API Routes
+io.on('connection', (socket) => {
+  console.log('Frontend connected via socket:', socket.id);
+});
 
-// Route untuk Pesan
-app.post('/send-message', sendMessage); // Mengirim pesan
-app.get('/receive-message', getReceivedMessages); // Menerima pesan masuk
-
-app.get('/api/messages', messages); // Mendapatkan semua pesan
-app.post('/api/messages', newMessage); // Menambahkan pesan baru
-
-// Route untuk Pengguna
-app.post('/api/users', getAllUsers);
-
-// Route untuk Perusahaan dan Percakapan
-app.post('/api/company-phones', companyPhone); // Menambahkan data telepon perusahaan
-app.post('/api/conversations', conversation); // Menambahkan percakapan baru
-app.get('/api/conversations', saveConversation); // Menyimpan percakapan
-
-// Inisialisasi WhatsApp Client
-client.initialize();
-
-// ------------------------
-// Setup Instagram Client
-const ig = new IgApiClient();
-
-async function loginInstagram() {
-    try {
-        ig.state.generateDevice(process.env.IG_USERNAME);
-        await ig.account.login(process.env.IG_USERNAME, process.env.IG_PASSWORD);
-        console.log('Instagram login berhasil');
-    } catch (err) {
-        console.error('Instagram login error:', err);
-    }
+// Fungsi untuk emit pesan baru ke semua client terhubung
+function emitNewMessage(message) {
+  io.emit('new-message', message);
 }
-loginInstagram();
 
-// Contoh route Instagram: dapatkan profil user
-app.get('/api/instagram/profile', async (req, res) => {
-    try {
-        const user = await ig.account.currentUser();
-        res.json(user);
-    } catch (err) {
-        res.status(500).json({ error: 'Gagal mengambil profil Instagram' });
-    }
+// Listen event dari whatsappEvents dan emit via socket.io
+whatsappEvents.on('new-message', (message) => {
+  console.log('Pesan baru dari WhatsApp, kirim ke frontend:', message);
+  emitNewMessage(message);
 });
 
-// ------------------------
-// Setup Telegram Bot
-const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
+// Koneksi MongoDB dan mulai server
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/chatvue', {})
+  .then(() => {
+    console.log('Koneksi ke MongoDB berhasil');
 
-bot.start((ctx) => ctx.reply('Halo! Saya bot helpdesk siap membantu.'));
-bot.help((ctx) => ctx.reply('Kirim pesan apa saja, saya akan membalas.'));
-bot.on('text', (ctx) => {
-    ctx.reply(`Kamu berkata: ${ctx.message.text}`);
-});
+    // Mulai WhatsApp client
+    initializeWhatsApp();
 
-bot.launch().then(() => {
-    console.log('Telegram bot berjalan...');
-});
+    // Mulai Instagram login
+    instagramService.login(process.env.IG_USERNAME, process.env.IG_PASSWORD)
+      .then(result => {
+        if (result.success) console.log('Instagram siap untuk menerima DM.');
+      })
+      .catch(err => console.error('Login Instagram gagal:', err));
 
-// Contoh route untuk kirim pesan Telegram via API
-app.post('/api/telegram/send', async (req, res) => {
-    const { chatId, message } = req.body;
-    if (!chatId || !message) {
-        return res.status(400).json({ error: 'chatId dan message diperlukan' });
-    }
-    try {
-        await bot.telegram.sendMessage(chatId, message);
+    // Mulai Telegram Bot
+    telegramService.startBot();
+
+    // API routes
+    app.post('/send-message', sendMessage);
+    app.get('/receive-message', getReceivedMessages);
+    app.get('/api/messages', messages);
+    app.post('/api/messages', newMessage);
+    app.post('/api/users', getAllUsers);
+    app.post('/api/company-phones', companyPhone);
+    app.post('/api/conversations', conversation);
+    app.get('/api/conversations', saveConversation);
+
+    // Telegram send message
+    app.post('/api/telegram/send', async (req, res) => {
+      const { chatId, message } = req.body;
+      if (!chatId || !message) return res.status(400).json({ error: 'chatId dan message diperlukan' });
+      try {
+        await telegramService.sendMessage(chatId, message);
         res.json({ status: 'Pesan Telegram terkirim' });
-    } catch (err) {
+      } catch (err) {
         res.status(500).json({ error: 'Gagal mengirim pesan Telegram' });
-    }
-});
+      }
+    });
 
-// ------------------------
-
-app.listen(port, () => {
-    console.log(`Server berjalan di http://localhost:${port}`);
-});
+    server.listen(PORT, () => {
+      console.log(`Server berjalan di http://localhost:${PORT}`);
+    });
+  })
+  .catch((err) => console.error('Gagal koneksi ke MongoDB:', err));
