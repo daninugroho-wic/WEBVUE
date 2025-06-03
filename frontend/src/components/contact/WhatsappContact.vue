@@ -1,8 +1,9 @@
 <template>
-    <div class="h-full w-full bg-green-50 shadow-xl p-5 overflow-y-auto flex flex-col">
+  <div class="h-full w-full bg-green-50 shadow-xl p-5 flex flex-col">
+    <!-- Bagian atas: Judul & Nomor Perusahaan -->
+    <div>
       <h2 class="text-2xl font-bold text-green-900 mb-6 border-b border-green-300 pb-2">WHATSAPP</h2>
-  
-      <!-- Nomor Perusahaan -->
+
       <div
         class="flex items-center gap-4 p-4 mb-6 bg-green-100 border border-green-300 rounded-xl shadow-inner hover:shadow-md transition-shadow cursor-default"
       >
@@ -17,40 +18,43 @@
           <p class="text-green-700 text-sm tracking-wide select-text">{{ companyPhone }}</p>
         </div>
       </div>
-  
-      <!-- Daftar Kontak -->
-      <div class="flex flex-col gap-3 flex-grow overflow-y-auto">
+    </div>
+
+    <!-- Bagian bawah: Daftar Kontak, ini scrollable -->
+    <div class="flex-grow overflow-y-auto min-h-0 flex flex-col gap-3 hide-scrollbar">
+      <div
+        v-for="(contact, index) in contacts"
+        :key="contact.contactNumber || index"
+        class="flex items-center gap-4 p-3 bg-white rounded-xl shadow hover:bg-green-100 cursor-pointer transition-colors"
+        role="button"
+        tabindex="0"
+        @click="selectContact(contact)"
+        @keydown.enter="selectContact(contact)"
+      >
         <div
-          v-for="(contact, index) in contacts"
-          :key="contact.contactNumber || index"
-          class="flex items-center gap-4 p-3 bg-white rounded-xl shadow hover:bg-green-100 cursor-pointer transition-colors"
-          role="button"
-          tabindex="0"
-          @click="selectContact(contact)"
-          @keydown.enter="selectContact(contact)"
+          class="w-14 h-14 bg-green-300 rounded-full flex items-center justify-center text-green-900 font-semibold text-xl select-none"
+          aria-label="User icon"
         >
-          <div
-            class="w-14 h-14 bg-green-300 rounded-full flex items-center justify-center text-green-900 font-semibold text-xl select-none"
-            aria-label="User icon"
-          >
-            👤
-          </div>
-          <div class="flex flex-col overflow-hidden">
-            <p class="font-semibold text-green-900 truncate select-text">
-              {{ contact.name || contact.contactNumber }}
-            </p>
-            <p class="text-green-700 text-sm truncate select-text" title="Last message">
-              {{ contact.lastMessage || '-' }}
-            </p>
-          </div>
+          👤
+        </div>
+        <div class="flex flex-col overflow-hidden">
+          <p class="font-semibold text-green-900 truncate select-text">
+            {{ contact.name || contact.contactNumber }}
+          </p>
+          <p class="text-green-700 text-sm truncate select-text" title="Last message">
+            {{ contact.lastMessage || '-' }}
+          </p>
         </div>
       </div>
     </div>
-  </template>
+  </div>
+</template>
+
   
   <script setup>
   import { ref, watch, defineEmits, onMounted } from "vue";
   import axios from "axios";
+  
   
   const companyPhone = ref("+62 838-6647-4123");
   
