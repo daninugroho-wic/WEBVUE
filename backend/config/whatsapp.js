@@ -1,4 +1,3 @@
-// config/webwhatsapp.js
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const EventEmitter = require('events');
@@ -35,8 +34,10 @@ async function restartClient() {
     console.error('Batas maksimal restart client tercapai, butuh intervensi manual.');
     return;
   }
+
   restartAttempts++;
   console.log(`Restart WhatsApp Client, percobaan ke-${restartAttempts}...`);
+
   try {
     await client.destroy();
     await client.initialize();
@@ -48,6 +49,7 @@ async function restartClient() {
 
 async function ensureDefaultCompanyPhone() {
   const defaultNumber = "085156275875";
+
   try {
     const existing = await CompanyPhone.findOne({ phone_number: defaultNumber });
     if (!existing) {
@@ -65,14 +67,16 @@ async function ensureDefaultCompanyPhone() {
 
 async function handleIncomingMessage(message) {
   if (!message.body) return;
-
   if (!client.info || !client.info.wid) {
     console.warn('Client belum siap, abaikan pesan masuk');
     return;
   }
 
   try {
-    let conversation = await Conversation.findOne({ sender: message.from, receiver: client.info.wid._serialized });
+    let conversation = await Conversation.findOne({
+      sender: message.from,
+      receiver: client.info.wid._serialized,
+    });
 
     if (!conversation) {
       conversation = await new Conversation({
@@ -93,6 +97,7 @@ async function handleIncomingMessage(message) {
     });
 
     await newMessage.save();
+
     console.log(`Pesan dari ${message.from} berhasil disimpan: "${message.body}"`);
 
     // Emit event pesan baru
@@ -105,12 +110,50 @@ async function handleIncomingMessage(message) {
       platform: 'whatsapp',
     });
 
+    // Jika perlu membalas pesan
+    // await sendReply(message.from, 'Terima kasih telah menghubungi kami!');
+
   } catch (error) {
     if (error.message.includes('Execution context was destroyed')) {
       console.warn('Eksekusi gagal karena context hilang, abaikan dan tunggu reconnect');
     } else {
       console.error('Gagal menyimpan pesan masuk:', error);
     }
+  }
+}
+
+// Fungsi untuk mengirim balasan ke pengirim
+async function sendReply(sender, replyText) {
+  try {
+    // Mengirim pesan balasan ke pengirim
+    await client.sendMessage(sender, replyText);
+    console.log(`Balasan berhasil dikirim ke ${sender}`);
+
+    // Simpan pesan balasan ke database
+    const conversation = await Conversation.findOne({
+      sender: sender,
+      receiver: client.info.wid._serialized,
+    });
+
+    const newMessage = new Message({
+      conversation_id: conversation._id,
+      text: replyText,
+      sender_id: client.info.wid._serialized,
+      receiver_id: sender,
+      status: 'sent',
+      send_by: 'system',
+      timestamp: Date.now(),
+    });
+
+    await newMessage.save();
+    console.log(`Pesan balasan ke ${sender} berhasil disimpan: "${replyText}"`);
+
+    // Update percakapan terakhir dengan pesan balasan
+    conversation.lastMessage = replyText;
+    await conversation.save();
+
+  } catch (error) {
+    console.error('Gagal mengirim pesan balasan:', error);
   }
 }
 
@@ -143,9 +186,7 @@ function initializeWhatsApp() {
 
   client.on('disconnected', (reason) => {
     console.warn('WhatsApp Client terputus:', reason);
-    setTimeout(() => {
-      restartClient();
-    }, 10000);
+    setTimeout(restartClient, 10000);
   });
 
   client.on('error', (error) => console.error('Error WhatsApp Client:', error));

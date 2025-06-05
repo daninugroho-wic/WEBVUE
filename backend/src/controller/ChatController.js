@@ -1,4 +1,4 @@
-const { client } = require('../../config/webwhatsapp.js');
+const { client } = require('../../config/whatsapp.js');
 const Message = require('../models/Message.js');
 const Conversation = require('../models/Conversation.js');
 const CompanyPhone = require('../models/CompanyPhone.js');

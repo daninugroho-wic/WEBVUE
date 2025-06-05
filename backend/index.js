@@ -6,7 +6,7 @@ const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
 
-const { initializeWhatsApp, whatsappEvents } = require('./config/webwhatsapp');
+const { initializeWhatsApp, whatsappEvents } = require('./config/whatsapp');
 const instagramService = require('./config/instagram');
 const telegramService = require('./config/telegram');
 
