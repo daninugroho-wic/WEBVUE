@@ -6,11 +6,13 @@ const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
 
-const { initializeWhatsApp, whatsappEvents } = require('./config/webwhatsapp');
+const { initializeWhatsApp, whatsappEvents } = require('./config/whatsapp');
 const instagramService = require('./config/instagram');
 const telegramService = require('./config/telegram');
 
 const {
+  contacts,
+  saveContact,
   companyPhone,
   conversation,
   saveConversation,
@@ -69,6 +71,8 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/chatvue',
     app.post('/send-message', sendMessage);
     app.get('/receive-message', getReceivedMessages);
     app.get('/api/messages', messages);
+    app.get('/api/contacts', contacts);
+    app.post('/api/contacts', saveContact);
     app.post('/api/messages', newMessage);
     app.post('/api/users', getAllUsers);
     app.post('/api/company-phones', companyPhone);

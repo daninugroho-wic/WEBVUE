@@ -1,8 +1,20 @@
 .hide-scrollbar::-webkit-scrollbar {
-    display: none;
-  }
-  .hide-scrollbar {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-  
+  display: none;
+}
+
+.hide-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+
+
+
+
+.hide-scrollbar-horizontal::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar-horizontal {
+  overflow-x: hidden; 
+}

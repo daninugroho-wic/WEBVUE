@@ -14,6 +14,17 @@ onMounted(() => {
     console.log('Connected to backend socket:', socket.id)
   })
 
+  socket.on('disconnect', () => {
+    console.log('Disconnected from server');
+  })
+  
+  socket.on("new-contact", (contact) => {
+    if (!contacts.value.some((c) => c.whatsappId === contact.whatsappId)) {
+      contacts.value.unshift(contact);
+      saveContactsToLocalStorage();
+    }
+  })
+
   socket.on('new-message', (message) => {
     console.log('Pesan baru diterima:', message)
     newMessage.value = message
@@ -39,7 +50,8 @@ function handleSelectContact(contact) {
 
 <template>
   <div class="flex flex-col md:flex-row h-screen">
-    <div class="bg-white w-full md:w-72 h-1/3 md:h-full border-b md:border-b-0 md:border-r border-gray-200 overflow-auto">
+    <div
+      class="bg-white w-full md:w-72 h-1/3 md:h-full border-b md:border-b-0 md:border-r border-gray-200 overflow-auto">
       <WhatsappContact :newMessage="newMessage" @select-contact="handleSelectContact" />
     </div>
 

@@ -1,4 +1,3 @@
-// config/webwhatsapp.js
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const EventEmitter = require('events');
@@ -30,13 +29,18 @@ const client = new Client({
   },
 });
 
+// ----------------- Helper Functions -----------------
+
+// Restart the WhatsApp client up to a maximum number of attempts
 async function restartClient() {
   if (restartAttempts >= MAX_RESTART_ATTEMPTS) {
     console.error('Batas maksimal restart client tercapai, butuh intervensi manual.');
     return;
   }
+
   restartAttempts++;
   console.log(`Restart WhatsApp Client, percobaan ke-${restartAttempts}...`);
+
   try {
     await client.destroy();
     await client.initialize();
@@ -46,16 +50,18 @@ async function restartClient() {
   }
 }
 
+// Ensure that the default company phone number is saved in the database
 async function ensureDefaultCompanyPhone() {
   const defaultNumber = "085156275875";
   try {
     const existing = await CompanyPhone.findOne({ phone_number: defaultNumber });
     if (!existing) {
-      await new CompanyPhone({
+      const newCompanyPhone = new CompanyPhone({
         phone_number: defaultNumber,
         description: "Default WhatsApp Phone",
         name: "Default",
-      }).save();
+      });
+      await newCompanyPhone.save();
       console.log("Nomor default perusahaan berhasil disimpan");
     }
   } catch (error) {
@@ -63,16 +69,15 @@ async function ensureDefaultCompanyPhone() {
   }
 }
 
+// Handle incoming WhatsApp messages
 async function handleIncomingMessage(message) {
-  if (!message.body) return;
-
-  if (!client.info || !client.info.wid) {
-    console.warn('Client belum siap, abaikan pesan masuk');
-    return;
-  }
-
+  if (!message.body || !client.info || !client.info.wid) return;
+  
   try {
-    let conversation = await Conversation.findOne({ sender: message.from, receiver: client.info.wid._serialized });
+    let conversation = await Conversation.findOne({
+      sender: message.from,
+      receiver: client.info.wid._serialized,
+    });
 
     if (!conversation) {
       conversation = await new Conversation({
@@ -95,7 +100,7 @@ async function handleIncomingMessage(message) {
     await newMessage.save();
     console.log(`Pesan dari ${message.from} berhasil disimpan: "${message.body}"`);
 
-    // Emit event pesan baru
+    // Emit the new message event to all clients
     whatsappEvents.emit('new-message', {
       message_id: newMessage._id.toString(),
       sender_id: newMessage.sender_id,
@@ -114,7 +119,48 @@ async function handleIncomingMessage(message) {
   }
 }
 
+// Send reply to the user 
+async function sendReply(sender, replyText) {
+  try {
+    await client.sendMessage(sender, replyText);
+    console.log(`Balasan berhasil dikirim ke ${sender}`);
+
+    const conversation = await Conversation.findOne({
+      sender: sender,
+      receiver: client.info.wid._serialized,
+    });
+
+    const newMessage = new Message({
+      conversation_id: conversation._id,
+      text: replyText,
+      sender_id: client.info.wid._serialized,
+      receiver_id: sender,
+      status: 'sent',
+      send_by: 'system',
+      timestamp: Date.now(),
+    });
+
+    await newMessage.save();
+    console.log(`Pesan balasan ke ${sender} berhasil disimpan: "${replyText}"`);
+
+    // Update conversation's last message
+    conversation.lastMessage = replyText;
+    await conversation.save();
+
+  } catch (error) {
+    console.error('Gagal mengirim pesan balasan:', error);
+  }
+}
+
+// ----------------- Initialize WhatsApp Client -----------------
+
+// Initialize the WhatsApp client and set up event listeners
 function initializeWhatsApp() {
+  client.on('error', (error) => console.error('Error WhatsApp Client:', error));
+  client.on('message', handleIncomingMessage);
+  client.initialize();
+
+  client.on('authenticated', () => console.log('WhatsApp terautentikasi.'));
   client.on('qr', (qr) => {
     qrcode.generate(qr, { small: true });
     console.log('QR Code dibuat. Silakan scan WhatsApp di ponsel Anda.');
@@ -134,8 +180,6 @@ function initializeWhatsApp() {
     await ensureDefaultCompanyPhone();
   });
 
-  client.on('authenticated', () => console.log('WhatsApp terautentikasi.'));
-
   client.on('auth_failure', () => {
     console.warn('Autentikasi gagal, mencoba restart...');
     restartClient();
@@ -143,16 +187,8 @@ function initializeWhatsApp() {
 
   client.on('disconnected', (reason) => {
     console.warn('WhatsApp Client terputus:', reason);
-    setTimeout(() => {
-      restartClient();
-    }, 10000);
+    setTimeout(restartClient, 10000); // Attempt to restart after 10 seconds
   });
-
-  client.on('error', (error) => console.error('Error WhatsApp Client:', error));
-
-  client.on('message', handleIncomingMessage);
-
-  client.initialize();
 }
 
 module.exports = { client, initializeWhatsApp, whatsappEvents };
