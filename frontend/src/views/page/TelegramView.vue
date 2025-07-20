@@ -1,17 +1,17 @@
 <script setup>
-import InstagramChat from "../components/InstagramChat.vue"
-import InstagramContact from "@/components/contact/InstagramContact.vue"
+import TelegramChat from "@/components/TelegramChat.vue"
+import TelegramContact from "@/components/contact/TelegramContact.vue"
 </script>
 
 <template>
   <div class="flex h-screen">
     <!-- Komponen Kontak (Kanan) -->
     <div class="bg-white w-1/5">
-      <InstagramContact />
+      <TelegramContact />
     </div>
     <!-- Komponen Chat (Kiri) -->
     <div class="bg-gray-100 flex-auto">
-      <InstagramChat />
+      <TelegramChat />
     </div>
   </div>
 </template>

@@ -50,22 +50,24 @@ async function restartClient() {
   }
 }
 
-// Ensure that the default company phone number is saved in the database
+// MENYIMPAN NOMOR OJO DI OWAH OWAH
 async function ensureDefaultCompanyPhone() {
-  const defaultNumber = "085156275875";
   try {
-    const existing = await CompanyPhone.findOne({ phone_number: defaultNumber });
+    let companyPhoneNumber = client.info.wid._serialized;
+
+    companyPhoneNumber = companyPhoneNumber.replace('@c.us', '');
+
+    const existing = await CompanyPhone.findOne({ phone_number: companyPhoneNumber });
     if (!existing) {
       const newCompanyPhone = new CompanyPhone({
-        phone_number: defaultNumber,
+        phone_number: companyPhoneNumber,
         description: "Default WhatsApp Phone",
-        name: "Default",
       });
       await newCompanyPhone.save();
-      console.log("Nomor default perusahaan berhasil disimpan");
+      console.log("Nomor perusahaan berhasil disimpan:", companyPhoneNumber);
     }
   } catch (error) {
-    console.error('Gagal menyimpan nomor default perusahaan:', error);
+    console.error('Gagal menyimpan nomor perusahaan:', error);
   }
 }
 
@@ -87,11 +89,22 @@ async function handleIncomingMessage(message) {
       console.log('Percakapan baru dibuat:', conversation._id);
     }
 
+    let messageType = 'text';  // Default type is text
+    let messageSource = 'user';  // Default source is user
+
+    // Check if the message is a caption from a status
+    if (message.isStatus) {
+      messageType = 'status';  // Set message type to 'status'
+      messageSource = 'status';  // Set source to 'status'
+    }
+
     const newMessage = new Message({
       conversation_id: conversation._id,
       text: message.body,
       sender_id: message.from,
       receiver_id: client.info.wid._serialized,
+      messageType: messageType,
+      messageSource: messageSource,
       status: 'received',
       send_by: 'user',
       timestamp: message.timestamp || Date.now(),
@@ -108,6 +121,8 @@ async function handleIncomingMessage(message) {
       text: newMessage.text,
       timestamp: newMessage.timestamp,
       platform: 'whatsapp',
+      messageType: newMessage.messageType,  // Add messageType to the emitted event
+      messageSource: newMessage.messageSource,  
     });
 
   } catch (error) {
@@ -119,7 +134,7 @@ async function handleIncomingMessage(message) {
   }
 }
 
-// Send reply to the user 
+// Send reply to the user
 async function sendReply(sender, replyText) {
   try {
     await client.sendMessage(sender, replyText);
@@ -135,6 +150,7 @@ async function sendReply(sender, replyText) {
       text: replyText,
       sender_id: client.info.wid._serialized,
       receiver_id: sender,
+      messageType: 'text',  // Tipe pesan balasan adalah 'text'
       status: 'sent',
       send_by: 'system',
       timestamp: Date.now(),
@@ -151,6 +167,7 @@ async function sendReply(sender, replyText) {
     console.error('Gagal mengirim pesan balasan:', error);
   }
 }
+
 
 // ----------------- Initialize WhatsApp Client -----------------
 

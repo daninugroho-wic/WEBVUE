@@ -88,8 +88,9 @@ const newMessage = async (req, res) => {
 // Ambil semua pesan (urut naik berdasarkan waktu)
 const messages = async (req, res) => {
   try {
-    const allMessages = await Message.find().sort({ timestamp: 1 });
-    res.json({ success: true, messages: allMessages });
+    const textMessages = await Message.find({ messageType: 'text' }).sort({ timestamp: 1 });
+
+    res.json({ success: true, messages: textMessages });
   } catch (err) {
     handleError(res, err, "Gagal mengambil pesan");
   }
@@ -119,7 +120,7 @@ const getConversations = async (req, res) => {
   try {
     const conversations = await Conversation.find().lean();
     const results = await Promise.all(conversations.map(async (conv) => {
-      const lastMsg = await Message.findOne({ conversation_id: conv._id }).sort({ timestamp: -1 }).lean();
+      const lastMsg = await Message.findOne({ conversation_id: conv._id, messageType: 'text' }).sort({ timestamp: -1 }).lean();
       return {
         id: conv._id,
         contactNumber: conv.sender,
@@ -135,14 +136,36 @@ const getConversations = async (req, res) => {
   }
 };
 
+// Fungsi untuk memfilter pesan berdasarkan jenis
+const filterMessages = async (req, res) => {
+  const { messageType } = req.query; // 'text', 'status', 'media'
+
+  try {
+    // Jika messageType tidak ada, cari semua pesan
+    const query = messageType ? { messageType } : {};
+
+    const filteredMessages = await Message.find(query).sort({ timestamp: 1 });
+
+    res.json({
+      success: true,
+      messages: filteredMessages,
+    });
+  } catch (err) {
+    handleError(res, err, "Gagal memfilter pesan");
+  }
+};
+
+
 // Ambil pesan berdasarkan sender tertentu
 const getMessagesBySender = async (req, res) => {
   const { sender } = req.query;
   if (!sender) return res.status(400).json({ success: false, error: "Parameter 'sender' wajib diisi" });
 
   try {
-    const messages = await Message.find({ sender_id: sender }).sort({ timestamp: 1 });
-    res.json({ success: true, messages });
+    // Filter pesan berdasarkan sender_id dan hanya pesan dengan messageType 'text'
+    const textMessages = await Message.find({ sender_id: sender, messageType: 'text' }).sort({ timestamp: 1 });
+
+    res.json({ success: true, messages: textMessages });
   } catch (error) {
     handleError(res, error, "Gagal mengambil pesan berdasarkan sender");
   }
@@ -151,16 +174,17 @@ const getMessagesBySender = async (req, res) => {
 // Ambil daftar kontak yang tersimpan
 const contacts = async (req, res) => {
   try {
-    const contacts = await Contact.find().lean();
+    const contacts = await Contact.find().lean();  // Ambil semua kontak
     const results = await Promise.all(
       contacts.map(async (contact) => {
         const lastMessage = await Message.findOne({ sender_id: contact.whatsappId })
-          .sort({ timestamp: -1 })
+          .sort({ timestamp: -1 })  // Mengambil pesan terakhir berdasarkan waktu
           .lean();
+
         return {
           ...contact,
-          lastMessage: lastMessage ? lastMessage.text : 'Tidak ada pesan',
-          lastTimestamp: lastMessage ? lastMessage.timestamp : null,
+          lastMessage: lastMessage ? lastMessage.text : 'Tidak ada pesan',  // Menambahkan teks pesan terakhir
+          lastTimestamp: lastMessage ? lastMessage.timestamp : null,         // Menambahkan timestamp pesan terakhir
         };
       })
     );
@@ -170,38 +194,35 @@ const contacts = async (req, res) => {
   }
 };
 
+// Simpan kontak baru
 const saveContact = async (req, res) => {
-  const { whatsappId, name, phoneNumber, profilePicUrl } = req.body;
+  const { whatsappId, name, phoneNumber, profilePicUrl, lastSeen } = req.body;
+
   try {
     // Cek apakah kontak sudah ada
     const existingContact = await Contact.findOne({ whatsappId });
     if (existingContact) {
       return res.status(400).json({ success: false, message: "Kontak sudah ada" });
     }
+
+    // Membuat instance kontak baru sesuai model yang telah dibuat
     const newContact = new Contact({
       whatsappId,
       name,
       phoneNumber,
       profilePicUrl,
+      lastSeen,       // Menambahkan lastSeen
     });
-    await newContact.save();
+
+    await newContact.save();  // Menyimpan kontak baru ke database
     res.status(201).json({ success: true, contact: newContact });
   } catch (error) {
     handleError(res, error, "Gagal menyimpan kontak");
   }
 };
 
-// Tambah nomor perusahaan
-const companyPhone = async (req, res) => {
-  const { phone_number, description, name } = req.body;
-  try {
-    const phone = new CompanyPhone({ phone_number, description, name });
-    await phone.save();
-    res.status(201).json({ success: true, phone });
-  } catch (err) {
-    handleError(res, err, "Gagal menambah nomor perusahaan");
-  }
-};
+
+
 
 // Buat percakapan baru
 const conversation = async (req, res) => {
@@ -235,10 +256,24 @@ const getAllUsers = async (req, res) => {
   }
 };
 
+//________________________________________________________________________________________________________________
+// Tambah nomor perusahaan OJO DI OWAH OWAH
+const companyPhone = async (req, res) => {
+  const { phone_number, description, name } = req.body;
+  try {
+    const phone = new CompanyPhone({ phone_number, description, name });
+    await phone.save();
+    res.status(201).json({ success: true, phone });
+  } catch (err) {
+    handleError(res, err, "Gagal menambah nomor perusahaan");
+  }
+};
+
 module.exports = {
   contacts,
   saveContact,
   sendMessage,
+  filterMessages,
   getReceivedMessages,
   companyPhone,
   conversation,

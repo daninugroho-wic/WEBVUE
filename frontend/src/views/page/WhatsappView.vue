@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { io } from 'socket.io-client'
-import WhatsappChat from "../components/WhatsappChat.vue"
+import WhatsappChat from "@/components/WhatsappChat.vue"
 import WhatsappContact from "@/components/contact/WhatsappContact.vue"
 
 const socket = io('http://localhost:3000') // sesuaikan backend URL

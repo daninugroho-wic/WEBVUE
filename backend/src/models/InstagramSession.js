@@ -1,8 +1,11 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const InstagramSessionSchema = new mongoose.Schema({
   sessionData: { type: Object, required: true },
-  updatedAt: { type: Date, default: Date.now }
-});
+},
+  {
+    timestamps: true,
+  }
+);
 
-module.exports = mongoose.model('InstagramSession', InstagramSessionSchema);
+module.exports = mongoose.model("InstagramSession", InstagramSessionSchema);
