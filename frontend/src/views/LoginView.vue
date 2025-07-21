@@ -103,7 +103,3 @@ const handleLogin = async () => {
   }
 };
 </script>
-
-<style scoped>
-/* Optional: Customize form and button styles */
-</style>
