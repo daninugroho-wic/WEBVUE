@@ -92,9 +92,9 @@ const handleLogin = async () => {
 
     // Redirect berdasarkan role
     if (response.data.role === 'admin') {
-      window.location.href = '/admin';
+      window.location.href = '/admins';
     } else if (response.data.role === 'helpdesk') {
-      window.location.href = '/helpdesk';
+      window.location.href = '/helpdesks';
     }
   } catch (error) {
     errorMessage.value = error.response?.data?.error || 'Gagal login';

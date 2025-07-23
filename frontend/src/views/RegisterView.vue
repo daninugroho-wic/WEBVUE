@@ -9,64 +9,57 @@
 
       <!-- Form Register -->
       <form @submit.prevent="handleRegister" class="space-y-6">
+
+<!-- Role Input (bisa select atau hidden jika default) -->
+<div>
+  <label for="role" class="block mb-1 font-medium text-gray-700">Role</label>
+  <select id="role" v-model="role" required
+    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition duration-300">
+    <option value="helpdesk">Helpdesk</option>
+    <option value="admin">Admin</option>
+  </select>
+</div>
+        
         <!-- Username Input -->
         <div>
           <label for="username" class="block mb-1 font-medium text-gray-700">Username</label>
-          <input
-            id="username"
-            v-model="username"
-            type="text"
-            required
+          <input id="username" v-model="username" type="text" required
             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition duration-300"
-            placeholder="Masukkan username"
-          />
+            placeholder="Masukkan username" />
         </div>
 
         <!-- Email Input -->
         <div>
           <label for="email" class="block mb-1 font-medium text-gray-700">Email</label>
-          <input
-            id="email"
-            v-model="email"
-            type="email"
-            required
+          <input id="email" v-model="email" type="email" required
             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition duration-300"
-            placeholder="Masukkan email"
-          />
+            placeholder="Masukkan email" />
         </div>
 
         <!-- Password Input -->
         <div>
           <label for="password" class="block mb-1 font-medium text-gray-700">Password</label>
-          <input
-            id="password"
-            v-model="password"
-            type="password"
-            required
+          <input id="password" v-model="password" type="password" required
             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition duration-300"
-            placeholder="Masukkan password"
-          />
+            placeholder="Masukkan password" />
         </div>
 
         <!-- Confirm Password Input -->
         <div>
           <label for="confirmPassword" class="block mb-1 font-medium text-gray-700">Confirm Password</label>
-          <input
-            id="confirmPassword"
-            v-model="confirmPassword"
-            type="password"
-            required
+          <input id="confirmPassword" v-model="confirmPassword" type="password" required
             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 transition duration-300"
-            placeholder="Konfirmasi password"
-          />
+            placeholder="Konfirmasi password" />
+        </div>
+
+        <!-- Error Message -->
+        <div v-if="errorMessage" class="text-red-500 text-center mb-4">
+          <p>{{ errorMessage }}</p>
         </div>
 
         <!-- Sign Up Button -->
-        <button
-          type="submit"
-          :disabled="loading"
-          class="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-400 transition duration-300 transform hover:scale-105"
-        >
+        <button type="submit" :disabled="loading"
+          class="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-400 transition duration-300 transform hover:scale-105">
           {{ loading ? 'Loading...' : 'Sign Up' }}
         </button>
       </form>
@@ -74,7 +67,7 @@
       <!-- Login Link -->
       <div class="mt-4 text-center">
         <p class="text-sm text-gray-600">
-          Sudah punya akun? 
+          Sudah punya akun?
           <router-link to="/" class="text-indigo-600 hover:underline">Masuk Sekarang</router-link>
         </p>
       </div>
@@ -87,6 +80,8 @@ import { ref } from 'vue';
 import axios from 'axios';
 import { useRouter } from 'vue-router';
 
+
+const role = ref('helpdesk'); // default role
 const username = ref('');
 const email = ref('');
 const password = ref('');
@@ -111,13 +106,14 @@ const handleRegister = async () => {
 
   try {
     const response = await axios.post('http://localhost:3000/api/auth/register', {
-      username: username.value,
-      email: email.value,
-      password: password.value,
+       username: username.value,
+  email: email.value,
+  password: password.value,
+  role: role.value,
     });
 
     // Redirect to login page after successful registration
-    router.push('/login');
+    router.push('/');
   } catch (error) {
     errorMessage.value = error.response?.data?.error || 'Gagal mendaftar';
   } finally {

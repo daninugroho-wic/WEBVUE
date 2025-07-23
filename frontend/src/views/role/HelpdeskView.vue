@@ -96,15 +96,16 @@ function toggleSidebar() {
         </li>
 
         <li>
-          <router-link to="/"
-            class="flex justify-center items-center p-4 rounded-lg text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 group"
-            active-class="bg-gray-200 dark:bg-gray-800 font-semibold">
-            <svg class="w-8 h-8 text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-400" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-              <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4" />
-              <path d="M10 17l5-5-5-5v10z" />
-            </svg>
-          </router-link>
+            <button
+    @click="handleLogout"
+    class="flex justify-center items-center p-4 rounded-lg text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 group w-full"
+  >
+    <svg class="w-8 h-8 text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-400" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+      <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4" />
+      <path d="M10 17l5-5-5-5v10z" />
+    </svg>
+    <span class="sr-only">Logout</span>
+  </button>
         </li>
       </ul>
     </nav>
@@ -165,14 +166,25 @@ function toggleSidebar() {
 
 </template>
 
-<style>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-</style>
+<script>
+export default {
+  name: "DashboardHelpdesk",
+  data() {
+    return {
+      sidebarOpen: false,
+    };
+  },
+  methods: {
+    toggleSidebar() {
+      this.sidebarOpen = !this.sidebarOpen;
+    },
+    handleLogout() {
+      localStorage.removeItem('token');
+      localStorage.removeItem('role');
+      this.$router.replace({ path: '/' });
+      // Optional: reload page to clear all state
+      window.location.reload();
+    },
+  },
+};
+</script>

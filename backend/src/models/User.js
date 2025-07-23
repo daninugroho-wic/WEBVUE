@@ -1,22 +1,25 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcrypt');
 
 const UserSchema = new mongoose.Schema({
-    username: { type: String, required: true, unique: true, trim: true, lowercase: true, },
+    role: { type: String, required: true },
+    username: { type: String, required: true, unique: true, trim: true },
+    email: { type: String, required: true, unique: true, trim: true, lowercase: true },
     password: { type: String, required: true },
-    name: { type: String, required: true, trim: true, },
-    role: { type: String, enum: ['admin', 'helpdesk'], required: true, },
-    isActive: { type: Boolean, default: true, },
-    lastLogin: { type: Date, },
-    createdAt: { type: Date, default: Date.now, },
-    updatedAt: { type: Date, default: Date.now },
+}, {
+    timestamps: true,
 });
 
-// Middleware update updatedAt secara otomatis saat simpan
-UserSchema.pre('save', function (next) {
-    this.updatedAt = Date.now();
+// Hash the password before saving the user
+UserSchema.pre('save', async function(next) {
+    if (!this.isModified('password')) return next();
+    this.password = await bcrypt.hash(this.password, 10);
     next();
 });
 
-module.exports = mongoose.model('User', UserSchema);
+// Method to compare password for login
+UserSchema.methods.comparePassword = function(password) {
+    return bcrypt.compare(password, this.password);
+};
 
-// Model User ini digunakan untuk menyimpan informasi pengguna yang dapat mengakses sistem,
+module.exports = mongoose.model('User', UserSchema);
