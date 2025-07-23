@@ -38,28 +38,23 @@
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td class="px-6 py-4 text-sm text-gray-700">1</td>
-              <td class="px-6 py-4 text-sm text-gray-700">Dani Nigroho Wijaksono</td>
-              <td class="px-6 py-4 text-sm text-gray-700">083868474123</td>
-              <td class="px-6 py-4 text-sm text-gray-700">Ping 100</td>
-              <td class="px-6 py-4 text-sm text-gray-700">Solo</td>
-              <td class="px-6 py-4 text-sm text-gray-700">Whatsapp</td>
-              <td class="px-6 py-4 text-sm text-gray-700">NOC</td>
-              <td class="px-6 py-4 text-sm text-gray-700">Progress</td>
-            </tr>
-            <!-- Additional Rows -->
-            <tr>
-              <td class="px-6 py-4 text-sm text-gray-700">2</td>
-              <td class="px-6 py-4 text-sm text-gray-700">cusName</td>
-              <td class="px-6 py-4 text-sm text-gray-700">cusPhone</td>
-              <td class="px-6 py-4 text-sm text-gray-700">cusReport</td>
-              <td class="px-6 py-4 text-sm text-gray-700">location</td>
-              <td class="px-6 py-4 text-sm text-gray-700">platform</td>
-              <td class="px-6 py-4 text-sm text-gray-700">forTeam</td>
-              <td class="px-6 py-4 text-sm text-gray-700">Status</td>
-            </tr>
-          </tbody>
+  <tr v-if="loading">
+    <td colspan="8" class="text-center py-4">Loading...</td>
+  </tr>
+  <tr v-else-if="laporanList.length === 0">
+    <td colspan="8" class="text-center py-4">Belum ada data laporan</td>
+  </tr>
+  <tr v-for="(laporan, idx) in laporanList" :key="laporan._id">
+    <td class="px-6 py-4 text-sm text-gray-700">{{ idx + 1 }}</td>
+    <td class="px-6 py-4 text-sm text-gray-700">{{ laporan.namaCustomer }}</td>
+    <td class="px-6 py-4 text-sm text-gray-700">{{ laporan.noTelephone }}</td>
+    <td class="px-6 py-4 text-sm text-gray-700">{{ laporan.laporanCustomer }}</td>
+    <td class="px-6 py-4 text-sm text-gray-700">{{ laporan.lokasi }}</td>
+    <td class="px-6 py-4 text-sm text-gray-700">{{ laporan.platform }}</td>
+    <td class="px-6 py-4 text-sm text-gray-700">{{ laporan.team }}</td>
+    <td class="px-6 py-4 text-sm text-gray-700">{{ laporan.status }}</td>
+  </tr>
+</tbody>
         </table>
       </div>
     </div>
@@ -67,11 +62,27 @@
 </template>
 
 <script>
+import axios from "axios";
+
 export default {
   name: "LaporanAdmin",
+  data() {
+    return {
+      laporanList: [],
+      loading: false,
+      error: "",
+    };
+  },
+  async mounted() {
+    this.loading = true;
+    try {
+      const res = await axios.get("http://localhost:3000/api/laporan");
+      this.laporanList = res.data; // Pastikan backend mengirim array laporan
+    } catch (err) {
+      this.error = err.response?.data?.error || "Gagal mengambil data laporan";
+    } finally {
+      this.loading = false;
+    }
+  },
 };
 </script>
-
-<style scoped>
-/* Optional: Customize table and button styles */
-</style>

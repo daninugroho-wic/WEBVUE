@@ -70,17 +70,6 @@
             placeholder="Masukkan team" />
         </div>
 
-        <!-- Status -->
-        <div>
-          <label for="status" class="block mb-1 font-medium text-gray-700">Status</label>
-          <select id="status" v-model="status" required
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-300">
-            <option value="progress">Progress</option>
-            <option value="completed">Completed</option>
-            <option value="on_hold">On Hold</option>
-          </select>
-        </div>
-
         <!-- Submit Button -->
         <button type="submit" :disabled="loading"
           class="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-400 transition duration-300 transform hover:scale-105">
@@ -127,10 +116,10 @@ const handleSubmit = async () => {
       status: status.value,
     };
 
-    // Send data to API or handle accordingly
-    console.log("Laporan Submitted:", laporanData);
+     // Kirim data ke backend
+    await axios.post('http://localhost:3000/api/laporan', laporanData);
 
-    // Reset form after submission
+    // Reset form setelah submit
     namaCustomer.value = '';
     noTelephone.value = '';
     laporanCustomer.value = '';
@@ -139,8 +128,7 @@ const handleSubmit = async () => {
     team.value = '';
     status.value = 'progress';
 
-    // Optionally, show a success message or redirect
-    alert('Laporan berhasil dikirim!');
+     alert('Laporan berhasil dikirim!');
   } catch (error) {
     errorMessage.value = error.response?.data?.error || 'Gagal mengirim laporan';
   } finally {
@@ -148,7 +136,3 @@ const handleSubmit = async () => {
   }
 };
 </script>
-
-<style scoped>
-/* Optional: Customize form and button styles */
-</style>

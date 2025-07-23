@@ -96,23 +96,22 @@ function toggleSidebar() {
         </li>
 
         <li>
-            <button
-    @click="handleLogout"
-    class="flex justify-center items-center p-4 rounded-lg text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 group w-full"
-  >
-    <svg class="w-8 h-8 text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-400" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-      <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4" />
-      <path d="M10 17l5-5-5-5v10z" />
-    </svg>
-    <span class="sr-only">Logout</span>
-  </button>
+          <button @click="handleLogout"
+            class="flex justify-center items-center p-4 rounded-lg text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 group w-full">
+            <svg class="w-8 h-8 text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-400" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+              <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4" />
+              <path d="M10 17l5-5-5-5v10z" />
+            </svg>
+            <span class="sr-only">Logout</span>
+          </button>
         </li>
       </ul>
     </nav>
   </aside>
 
   <!-- Main content -->
- <!-- Main Content -->
+  <!-- Main Content -->
   <div class="flex flex-col items-center p-6 bg-gray-50">
     <!-- Header -->
     <div class="text-center mb-8">

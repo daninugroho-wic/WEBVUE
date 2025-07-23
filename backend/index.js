@@ -12,6 +12,7 @@ const instagramService = require("./config/instagram");
 const telegramService = require("./config/telegram");
 const authRoutes = require("./src/routes/authRoutes");
 const chatController = require("./src/controller/ChatController");
+const laporanRoutes = require("./src/routes/laporanRoutes");
 
 // Inisialisasi app & server
 const app = express();
@@ -67,7 +68,9 @@ mongoose
     app.post("/api/conversations", chatController.conversation);
     app.get("/api/conversations", chatController.saveConversation);
 
-    // Auth routes
+    
+    // authRoutes.js
+    app.use('/api', laporanRoutes);
     app.use("/api/auth", authRoutes);
 
     // Telegram send message
