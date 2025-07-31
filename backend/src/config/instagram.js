@@ -1,5 +1,5 @@
 const { IgApiClient } = require('instagram-private-api');
-const InstagramSession = require('../src/models/InstagramSession');
+const InstagramSession = require('../models/InstagramSession');
 
 class InstagramService {
   constructor() {

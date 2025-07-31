@@ -6,6 +6,9 @@ const UserSchema = new mongoose.Schema({
     username: { type: String, required: true, unique: true, trim: true },
     email: { type: String, required: true, unique: true, trim: true, lowercase: true },
     password: { type: String, required: true },
+    alamat: { type: String, default: '' },
+    status: { type: String, enum: ['On', 'Off'], default: 'On' },
+    lastLogin: { type: Date }, // Tambahkan field ini
 }, {
     timestamps: true,
 });

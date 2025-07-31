@@ -4,6 +4,7 @@ import LoginView from '../views/LoginView.vue';
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    // Login
     {
       path: '/',
       name: 'login',
@@ -14,23 +15,35 @@ const router = createRouter({
       name: 'register',
       component: () => import('../views/RegisterView.vue'),
     },
+
+    // Admin Akses 
     {
       path: '/akses',
       name: 'akses',
       component: () => import('../views/page/AdminAksesView.vue'),
       meta: { requiresAuth: true, role: 'admin' },
     },
+
+    // Admin Laporan
     {
       path: '/laporan',
       name: 'laporan',
       component: () => import('../views/page/AdminLapView.vue'),
       meta: { requiresAuth: true, role: 'admin' },
     },
+   
+    // Helpdesk Laporan
     {
-      path: '/formakses',
-      name: 'formakses',
-      component: () => import('../views/page/FormAksesView.vue'),
-      meta: { requiresAuth: true, role: 'admin' },
+      path: '/laporans',
+      name: 'laporans',
+      component: () => import('../views/page/HelpdeskLapView.vue'),
+      meta: { requiresAuth: true, role: 'helpdesk' },
+    },
+    {
+      path: '/laporans/edit/:id',
+      name: 'editLaporan',
+      component: () => import('../views/page/HelpdeskEditView.vue'),
+      meta: { requiresAuth: true, role: 'helpdesk' },
     },
     {
       path: '/form',
@@ -38,12 +51,8 @@ const router = createRouter({
       component: () => import('../views/page/HelpdeskFormView.vue'),
       meta: { requiresAuth: true, role: 'helpdesk' },
     },
-    {
-      path: '/laporans',
-      name: 'laporans',
-      component: () => import('../views/page/HelpdeskLapView.vue'),
-      meta: { requiresAuth: true, role: 'helpdesk' },
-    },
+
+    // CHAT
     {
       path: '/whatsapp',
       name: 'whatsapp',
@@ -62,6 +71,8 @@ const router = createRouter({
       component: () => import('../views/page/InstagramView.vue'),
       meta: { requiresAuth: true },
     },
+
+    // DASHBOARD
     {
       path: '/admins',
       name: 'admins',
@@ -79,17 +90,15 @@ const router = createRouter({
 
 // Navigation guard
 router.beforeEach((to, from, next) => {
-  const userRole = localStorage.getItem('role'); // Ambil role dari localStorage
-  const isAuthenticated = !!localStorage.getItem('token'); // Periksa apakah user sudah login
+  const userRole = localStorage.getItem('role');
+  const isAuthenticated = !!localStorage.getItem('token');
 
-  // Jika halaman memerlukan otentikasi
   if (to.meta.requiresAuth && !isAuthenticated) {
-    next('/'); // Redirect ke login jika belum login
+    next('/');
   } else if (to.meta.role && to.meta.role !== userRole) {
-    // Jika halaman membutuhkan role tertentu
-    next('/'); // Redirect ke login jika role tidak sesuai
+    next('/');
   } else {
-    next(); // Lanjutkan ke halaman yang diminta
+    next();
   }
 });
 

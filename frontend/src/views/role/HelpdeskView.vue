@@ -1,189 +1,326 @@
-<script setup>
-import { ref } from 'vue';
-
-const sidebarOpen = ref(false);
-
-function toggleSidebar() {
-  sidebarOpen.value = !sidebarOpen.value;
-}
-</script>
-
 <template>
-  <!-- Overlay ketika sidebar mobile aktif -->
-  <transition name="fade">
-    <div v-if="sidebarOpen" @click="toggleSidebar" class="fixed inset-0 bg-black bg-opacity-30 z-30 sm:hidden"></div>
-  </transition>
-
-  <!-- Toggle button untuk mobile -->
-  <button @click="toggleSidebar" :aria-expanded="sidebarOpen.toString()" aria-controls="logo-sidebar" type="button"
-    class="fixed top-4 left-4 z-40 inline-flex items-center p-2 text-gray-600 rounded-md bg-white shadow-md sm:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-    <span class="sr-only">Open sidebar</span>
-    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-      stroke-linejoin="round" viewBox="0 0 24 24">
-      <path d="M4 6h16M4 12h16M4 18h16" />
-    </svg>
-  </button>
-
-  <!-- Sidebar -->
-  <aside id="logo-sidebar" :class="[
-    'fixed top-0 left-0 z-40 h-full w-20 bg-white shadow-lg dark:bg-gray-900 transform transition-transform duration-300 ease-in-out overflow-y-auto sm:translate-x-0',
-    sidebarOpen ? 'translate-x-0' : '-translate-x-full',
-  ]" aria-label="Sidebar">
-    <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-      <a href="https://flowbite.com/" class="flex items-center">
-        <img src="https://flowbite.com/docs/images/logo.svg" alt="Logo" class="h-8 w-auto" />
-      </a>
-      <button @click="toggleSidebar"
-        class="sm:hidden text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400"
-        aria-label="Close sidebar">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-          stroke-linejoin="round" viewBox="0 0 24 24">
-          <path d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
-    </div>
-
-    <nav class="mt-5">
-      <ul class="space-y-4 px-2">
-        <li>
-          <router-link to="/laporans"
-            class="flex justify-center items-center p-4 rounded-lg text-gray-700 hover:bg-indigo-100 dark:text-gray-300 dark:hover:bg-indigo-700 group"
-            active-class="bg-indigo-200 dark:bg-indigo-800 font-semibold">
-            <svg class="w-8 h-8 text-indigo-500 group-hover:text-indigo-700 dark:group-hover:text-indigo-300"
-              fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-              viewBox="0 0 24 24">
-              <path d="M3 12l2-2m0 0l7-7 7 7M13 5v6h6" />
-              <path d="M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0h6" />
-            </svg>
-          </router-link>
-        </li>
-
-        <li>
-          <router-link to="/whatsapp"
-            class="flex justify-center items-center p-4 rounded-lg text-green-700 hover:bg-green-100 dark:text-green-300 dark:hover:bg-green-800 group"
-            active-class="bg-green-200 dark:bg-green-900 font-semibold">
-            <svg class="w-8 h-8 text-green-500 group-hover:text-green-700 dark:group-hover:text-green-300"
-              fill="currentColor" viewBox="0 0 24 24">
-              <path d="M16 3H4a1 1 0 00-1 1v14l4-4h9a1 1 0 001-1V4a1 1 0 00-1-1z" />
-            </svg>
-          </router-link>
-        </li>
-
-        <li>
-          <router-link to="/instagram"
-            class="flex justify-center items-center p-4 rounded-lg text-pink-600 hover:bg-pink-100 dark:text-pink-400 dark:hover:bg-pink-800 group"
-            active-class="bg-pink-200 dark:bg-pink-900 font-semibold">
-            <svg class="w-8 h-8 text-pink-500 group-hover:text-pink-700 dark:group-hover:text-pink-300"
-              fill="currentColor" viewBox="0 0 24 24">
-              <path
-                d="M7 2C4.8 2 3 3.8 3 6v12c0 2.2 1.8 4 4 4h10c2.2 0 4-1.8 4-4V6c0-2.2-1.8-4-4-4H7zm0 2h10c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H7c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-              <circle cx="12" cy="12" r="3.2" />
-              <circle cx="17.5" cy="6.5" r="1.5" />
-            </svg>
-          </router-link>
-        </li>
-
-        <li>
-          <router-link to="/telegram"
-            class="flex justify-center items-center p-4 rounded-lg text-blue-700 hover:bg-blue-100 dark:text-blue-300 dark:hover:bg-blue-800 group"
-            active-class="bg-blue-200 dark:bg-blue-900 font-semibold">
-            <svg class="w-8 h-8 text-blue-500 group-hover:text-blue-700 dark:group-hover:text-blue-300"
-              fill="currentColor" viewBox="0 0 24 24">
-              <path
-                d="M21.7 4.3a1 1 0 00-1.4-1.4L3.2 20.9a1 1 0 00.3 1.6l4.9 2.6a1 1 0 001.3-.5L14 14l7-7a1 1 0 000-1.4z" />
-            </svg>
-          </router-link>
-        </li>
-
-        <li>
-          <button @click="handleLogout"
-            class="flex justify-center items-center p-4 rounded-lg text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 group w-full">
-            <svg class="w-8 h-8 text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-400" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-              <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4" />
-              <path d="M10 17l5-5-5-5v10z" />
-            </svg>
-            <span class="sr-only">Logout</span>
-          </button>
-        </li>
-      </ul>
-    </nav>
-  </aside>
+  <!-- Sidebar Component -->
+  <Sidebar />
 
   <!-- Main content -->
-  <!-- Main Content -->
-  <div class="flex flex-col items-center p-6 bg-gray-50">
+  <div class="sm:ml-20 min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pb-8">
     <!-- Header -->
-    <div class="text-center mb-8">
-      <h1 class="text-3xl font-semibold text-indigo-700">Dashboard Helpdesk</h1>
-      <p class="text-lg text-gray-500">Kelola laporan dan data pengguna di sini.</p>
-    </div>
-
-    <!-- Grid Layout for Content -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl">
-      <!-- Finance -->
-      <div class="bg-white p-6 rounded-lg shadow-lg">
-        <h2 class="text-xl font-semibold text-gray-700">Finance (Jumlah Laporan)</h2>
-        <div class="mt-4 bg-gray-100 p-4 rounded-lg shadow-md">
-          <p class="text-2xl font-bold text-green-600">50</p>
+    <div class="pt-16 sm:pt-8 px-6">
+      <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-gray-800 mb-2">Dashboard Helpdesk</h1>
+        <p class="text-lg text-gray-600">Monitoring dan statistik laporan customer</p>
+        <div class="mt-4 text-sm text-gray-500">
+          <span>Last updated: {{ formatDate(new Date()) }}</span>
         </div>
       </div>
 
-      <!-- NOC -->
-      <div class="bg-white p-6 rounded-lg shadow-lg">
-        <h2 class="text-xl font-semibold text-gray-700">NOC (Jumlah Laporan)</h2>
-        <div class="mt-4 bg-gray-100 p-4 rounded-lg shadow-md">
-          <p class="text-2xl font-bold text-yellow-500">10</p>
+      <!-- Loading State -->
+      <div v-if="loading" class="flex justify-center items-center py-12">
+        <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600"></div>
+        <span class="ml-4 text-lg text-gray-600">Memuat data...</span>
+      </div>
+
+      <!-- Error State -->
+      <div v-else-if="error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6">
+        <div class="flex">
+          <svg class="w-5 h-5 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd"
+              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+              clip-rule="evenodd" />
+          </svg>
+          <div>
+            <strong>Error:</strong> {{ error }}
+            <button @click="loadData" class="ml-4 text-red-800 underline hover:text-red-900">
+              Coba lagi
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- Location -->
-      <div class="bg-white p-6 rounded-lg shadow-lg">
-        <h2 class="text-xl font-semibold text-gray-700">Location</h2>
-        <div class="mt-4 bg-gray-100 p-4 rounded-lg shadow-md">
-          <p class="text-2xl font-bold text-blue-600">5</p>
-        </div>
-      </div>
+      <!-- Dashboard Content -->
+      <div v-else class="space-y-8">
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <!-- Total Laporan -->
+          <div
+            class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500 hover:shadow-xl transition-shadow duration-300">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium text-gray-600">Total Laporan</p>
+                <p class="text-3xl font-bold text-gray-900">{{ dashboardData.totalLaporan }}</p>
+                <p class="text-sm text-blue-600 mt-1">
+                  <span class="font-medium">+{{ dashboardData.laporanBulanIni }}</span> bulan ini
+                </p>
+              </div>
+              <div class="p-3 bg-blue-100 rounded-full">
+                <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+            </div>
+          </div>
 
-      <!-- Finance (Secondary) -->
-      <div class="bg-white p-6 rounded-lg shadow-lg col-span-2">
-        <h2 class="text-xl font-semibold text-gray-700">Finance (Jumlah Laporan)</h2>
-        <div class="mt-4 bg-gray-100 p-4 rounded-lg shadow-md">
-          <p class="text-2xl font-bold text-green-600">50</p>
-        </div>
-      </div>
+          <!-- Team NOC -->
+          <div
+            class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-yellow-500 hover:shadow-xl transition-shadow duration-300">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium text-gray-600">Team NOC</p>
+                <p class="text-3xl font-bold text-gray-900">{{ dashboardData.teamNOC }}</p>
+                <p class="text-sm text-yellow-600 mt-1">
+                  <span class="font-medium">{{ dashboardData.nocProgress }}</span> dalam progress
+                </p>
+              </div>
+              <div class="p-3 bg-yellow-100 rounded-full">
+                <svg class="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                </svg>
+              </div>
+            </div>
+          </div>
 
-      <!-- Catatan -->
-      <div class="bg-white p-6 rounded-lg shadow-lg col-span-2">
-        <h2 class="text-xl font-semibold text-gray-700">Catatan</h2>
-        <div class="mt-4 bg-gray-100 p-4 rounded-lg shadow-md">
-          <p class="text-lg text-gray-700">Laporan pelanggan yang belum ditangani akan muncul di sini.</p>
+          <!-- Team Finance -->
+          <div
+            class="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500 hover:shadow-xl transition-shadow duration-300">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm font-medium text-gray-600">Team Finance</p>
+                <p class="text-3xl font-bold text-gray-900">{{ dashboardData.teamFinance }}</p>
+                <p class="text-sm text-green-600 mt-1">
+                  <span class="font-medium">{{ dashboardData.financeProgress }}</span> dalam progress
+                </p>
+              </div>
+              <div class="p-3 bg-green-100 rounded-full">
+                <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Platform Statistics -->
+        <div class="grid grid-cols-1 gap-6">
+          <!-- Recent Activities -->
+          <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Aktivitas Terbaru</h3>
+            <div class="space-y-3">
+              <div v-for="activity in dashboardData.recentActivities" :key="activity.id"
+                class="flex items-start space-x-3">
+                <div :class="activity.statusColor" class="w-2 h-2 rounded-full mt-2 flex-shrink-0"></div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm text-gray-900 truncate">{{ activity.customer }}</p>
+                  <p class="text-xs text-gray-500">{{ activity.team }} • {{ formatDate(activity.date) }}</p>
+                </div>
+                <span :class="activity.badgeColor" class="px-2 py-1 text-xs rounded-full">
+                  {{ activity.status }}
+                </span>
+              </div>
+            </div>
+            <div class="mt-4 pt-4 border-t border-gray-200">
+              <router-link to="/laporans" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+                Lihat semua laporan →
+              </router-link>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+          <h3 class="text-lg font-semibold text-gray-800 mb-4">Quick Actions</h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <router-link to="/form"
+              class="flex items-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-colors duration-200">
+              <svg class="w-8 h-8 text-gray-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              <div>
+                <p class="font-medium text-gray-700">Buat Laporan Baru</p>
+                <p class="text-sm text-gray-500">Tambah laporan customer</p>
+              </div>
+            </router-link>
+
+            <button @click="refreshData"
+              class="flex items-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-colors duration-200">
+              <svg class="w-8 h-8 text-gray-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <div>
+                <p class="font-medium text-gray-700">Refresh Data</p>
+                <p class="text-sm text-gray-500">Update statistik terbaru</p>
+              </div>
+            </button>
+
+            <router-link to="/laporans"
+              class="flex items-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors duration-200">
+              <svg class="w-8 h-8 text-gray-400 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <div>
+                <p class="font-medium text-gray-700">Kelola Laporan</p>
+                <p class="text-sm text-gray-500">Edit & update status</p>
+              </div>
+            </router-link>
+          </div>
         </div>
       </div>
     </div>
   </div>
-
 </template>
 
-<script>
-export default {
-  name: "DashboardHelpdesk",
-  data() {
-    return {
-      sidebarOpen: false,
-    };
-  },
-  methods: {
-    toggleSidebar() {
-      this.sidebarOpen = !this.sidebarOpen;
-    },
-    handleLogout() {
-      localStorage.removeItem('token');
-      localStorage.removeItem('role');
-      this.$router.replace({ path: '/' });
-      // Optional: reload page to clear all state
-      window.location.reload();
-    },
-  },
-};
+<script setup>
+import { ref, onMounted } from 'vue'
+import axios from 'axios'
+import Sidebar from '@/components/SidebarHelpdesks.vue'
+
+const loading = ref(true)
+const error = ref('')
+
+// Dashboard data
+const dashboardData = ref({
+  totalLaporan: 0,
+  laporanBulanIni: 0,
+  teamNOC: 0,
+  teamFinance: 0,
+  nocProgress: 0,
+  financeProgress: 0,
+  laporanSelesai: 0,
+  persentaseSelesai: 0,
+  platforms: [
+    { name: 'WhatsApp', count: 0, percentage: 0, color: 'bg-green-500' },
+    { name: 'Instagram', count: 0, percentage: 0, color: 'bg-pink-500' },
+    { name: 'Telegram', count: 0, percentage: 0, color: 'bg-blue-500' }
+  ],
+  recentActivities: []
+})
+
+function formatDate(date) {
+  return new Date(date).toLocaleDateString('id-ID', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+async function loadData() {
+  try {
+    loading.value = true
+    error.value = ''
+
+    // Fetch laporan data
+    const response = await axios.get('http://localhost:3000/api/laporan')
+    const laporans = response.data
+
+    // Calculate statistics
+    const currentMonth = new Date().getMonth()
+    const currentYear = new Date().getFullYear()
+
+    // Total laporan
+    dashboardData.value.totalLaporan = laporans.length
+
+    // Laporan bulan ini
+    dashboardData.value.laporanBulanIni = laporans.filter(laporan => {
+      const laporanDate = new Date(laporan.createdAt)
+      return laporanDate.getMonth() === currentMonth && laporanDate.getFullYear() === currentYear
+    }).length
+
+    // Team statistics
+    dashboardData.value.teamNOC = laporans.filter(laporan => laporan.team === 'NOC').length
+    dashboardData.value.teamFinance = laporans.filter(laporan => laporan.team === 'FINANCE').length
+
+    // Progress statistics
+    dashboardData.value.nocProgress = laporans.filter(laporan =>
+      laporan.team === 'NOC' && laporan.status === 'progress'
+    ).length
+    dashboardData.value.financeProgress = laporans.filter(laporan =>
+      laporan.team === 'FINANCE' && laporan.status === 'progress'
+    ).length
+
+    // Completed reports
+    dashboardData.value.laporanSelesai = laporans.filter(laporan => laporan.status === 'solved').length
+    dashboardData.value.persentaseSelesai = dashboardData.value.totalLaporan > 0
+      ? Math.round((dashboardData.value.laporanSelesai / dashboardData.value.totalLaporan) * 100)
+      : 0
+
+    // Platform statistics
+    const whatsappCount = laporans.filter(laporan => laporan.platform === 'whatsapp').length
+    const instagramCount = laporans.filter(laporan => laporan.platform === 'instagram').length
+    const telegramCount = laporans.filter(laporan => laporan.platform === 'telegram').length
+
+    const maxCount = Math.max(whatsappCount, instagramCount, telegramCount)
+
+    dashboardData.value.platforms[0].count = whatsappCount
+    dashboardData.value.platforms[0].percentage = maxCount > 0 ? (whatsappCount / maxCount) * 100 : 0
+
+    dashboardData.value.platforms[1].count = instagramCount
+    dashboardData.value.platforms[1].percentage = maxCount > 0 ? (instagramCount / maxCount) * 100 : 0
+
+    dashboardData.value.platforms[2].count = telegramCount
+    dashboardData.value.platforms[2].percentage = maxCount > 0 ? (telegramCount / maxCount) * 100 : 0
+
+    // Recent activities (last 5 reports)
+    dashboardData.value.recentActivities = laporans
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 5)
+      .map(laporan => ({
+        id: laporan._id,
+        customer: laporan.namaCustomer,
+        team: laporan.team,
+        status: laporan.status,
+        date: laporan.createdAt,
+        statusColor: getStatusColor(laporan.status),
+        badgeColor: getBadgeColor(laporan.status)
+      }))
+
+  } catch (err) {
+    console.error('Error loading dashboard data:', err)
+    error.value = err.response?.data?.error || 'Gagal memuat data dashboard'
+  } finally {
+    loading.value = false
+  }
+}
+
+function getStatusColor(status) {
+  switch (status) {
+    case 'solved': return 'bg-green-500'
+    case 'progress': return 'bg-yellow-500'
+    default: return 'bg-gray-500'
+  }
+}
+
+function getBadgeColor(status) {
+  switch (status) {
+    case 'solved': return 'bg-green-100 text-green-800'
+    case 'progress': return 'bg-yellow-100 text-yellow-800'
+    default: return 'bg-gray-100 text-gray-800'
+  }
+}
+
+async function refreshData() {
+  await loadData()
+}
+
+// Lifecycle
+onMounted(() => {
+  loadData()
+})
 </script>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>

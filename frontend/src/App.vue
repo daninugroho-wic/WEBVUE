@@ -1,24 +1,10 @@
 <script>
 import {
-    RouterLink,
     RouterView
 } from 'vue-router'
 </script>
 
 <template>
-<!-- <header>
-    <div class="wrapper">
-<div class="container">
-
-  <nav>
-    <RouterLink to="/">Home</RouterLink>
-    <RouterLink to="/whatsapp">Whatsapp</RouterLink>
-    <RouterLink to="/instagram">Instagram</RouterLink>
-    <RouterLink to="/telegram">Telegram</RouterLink>
-  </nav>
-</div>
-</div>
-  </header> -->
 
 <RouterView />
 </template>

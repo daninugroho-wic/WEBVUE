@@ -1,18 +1,16 @@
-const mongoose = require('mongoose');
+const mongoose = require('mongoose')
 
 const MessageSchema = new mongoose.Schema({
-    conversation_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation', required: true },
-    sender_id: { type: String },
-    receiver_id: { type: String },
-    messageType: { type: String, enum: ['text', 'status', 'media'], default: 'text' },
-    messageSource: { type: String, enum: ['user', 'status'], default: 'user' },
-    text: { type: String },
-    status: { type: String, enum: ['sent', 'received', 'read'], default: 'received' },
-    send_by: { type: String, enum: ['system', 'user'], default: 'system' },
-},
-    {
-        timestamps: true,
-    }
-);
+  conversation_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation' },
+  text: String,
+  sender_id: String,
+  receiver_id: String,
+  messageType: { type: String, enum: ['text', 'status', 'media'], default: 'text' },
+  messageSource: { type: String, enum: ['user', 'system', 'status'], default: 'user' },
+  status: { type: String, enum: ['sent', 'received'], default: 'sent' },
+  platform: { type: String, required: true, enum: ['whatsapp', 'telegram', 'instagram'] }, // tambahkan 'telegram', 'instagram'
+  send_by: String,
+  createdAt: { type: Date, default: Date.now }
+})
 
-module.exports = mongoose.model("Message", MessageSchema);
+module.exports = mongoose.model('Message', MessageSchema)

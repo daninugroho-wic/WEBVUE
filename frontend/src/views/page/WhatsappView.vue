@@ -1,62 +1,102 @@
+<template>
+  <!-- Sidebar Component -->
+  <Sidebar />
+
+  <!-- Main Content Area - Full Screen -->
+  <div class="flex h-screen w-full pl-0 sm:pl-20">
+    <!-- Contact List Panel -->
+    <div class="bg-white w-80 h-full border-r border-gray-200 flex flex-col">
+      <WhatsappContact 
+        :newMessage="newMessage" 
+        @select-contact="handleSelectContact"
+        @show-company-qr="handleShowCompanyQR" 
+      />
+    </div>
+
+    <!-- Chat Area - Takes remaining space -->
+    <div class="bg-gray-100 flex-1 h-full flex flex-col">
+      <WhatsappChat 
+        :newMessage="newMessage" 
+        :selectedContact="selectedContact"
+        :showCompanyQR="companyQRData"
+      />
+    </div>
+  </div>
+</template>
+
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { io } from 'socket.io-client'
 import WhatsappChat from "@/components/WhatsappChat.vue"
 import WhatsappContact from "@/components/contact/WhatsappContact.vue"
+import Sidebar from "@/components/SidebarHelpdesks.vue"
 
-const socket = io('http://localhost:3000') // sesuaikan backend URL
-
+const socket = io('http://localhost:3000', { transports: ['websocket'] })
 const newMessage = ref(null)
 const selectedContact = ref(null)
+const companyQRData = ref(null)
 
 onMounted(() => {
   socket.on('connect', () => {
-    console.log('Connected to backend socket:', socket.id)
+    console.log('✅ Connected:', socket.id)
   })
 
-  socket.on('disconnect', () => {
-    console.log('Disconnected from server');
-  })
-  
-  socket.on("new-contact", (contact) => {
-    if (!contacts.value.some((c) => c.whatsappId === contact.whatsappId)) {
-      contacts.value.unshift(contact);
-      saveContactsToLocalStorage();
-    }
+  socket.on('connection-status', (status) => {
+    console.log('📡 Status:', status)
   })
 
   socket.on('new-message', (message) => {
-    console.log('Pesan baru diterima:', message)
-    newMessage.value = message
-
-    // Jika belum ada kontak aktif, atau pesan dari kontak lain,
-    // otomatis set selectedContact ke pengirim pesan baru agar chat update
-    if (!selectedContact.value || selectedContact.value.contactNumber !== message.sender_id) {
-      selectedContact.value = { contactNumber: message.sender_id }
+    if (message.platform === 'whatsapp') {
+      newMessage.value = message
+      if (!selectedContact.value || selectedContact.value.whatsappId !== message.sender_id) {
+        selectedContact.value = { 
+          whatsappId: message.sender_id,
+          contactNumber: message.sender_id,
+          name: message.sender_id.replace('@c.us', '')
+        }
+      }
     }
+  })
+
+  socket.on('message-sent', (message) => {
+    console.log('📤 Sent:', message)
+  })
+
+  socket.on('disconnect', (reason) => {
+    console.log('❌ Disconnected:', reason)
+  })
+
+  socket.on('connect_error', (error) => {
+    console.error('🔴 Connection error:', error)
   })
 })
 
 onUnmounted(() => {
   socket.off('new-message')
+  socket.off('message-sent')
+  socket.off('connection-status')
   socket.disconnect()
 })
 
-// Fungsi menerima event dari child WhatsappContact saat kontak dipilih
 function handleSelectContact(contact) {
   selectedContact.value = contact
+  companyQRData.value = null
+}
+
+function handleShowCompanyQR(qrData) {
+  selectedContact.value = null
+  companyQRData.value = qrData
 }
 </script>
 
-<template>
-  <div class="flex flex-col md:flex-row h-screen">
-    <div
-      class="bg-white w-full md:w-72 h-1/3 md:h-full border-b md:border-b-0 md:border-r border-gray-200 overflow-auto">
-      <WhatsappContact :newMessage="newMessage" @select-contact="handleSelectContact" />
-    </div>
-
-    <div class="bg-gray-100 flex-1 h-2/3 md:h-full overflow-auto">
-      <WhatsappChat :newMessage="newMessage" :selectedContact="selectedContact" />
-    </div>
-  </div>
-</template>
+<style scoped>
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+#app {
+  height: 100vh;
+}
+</style>

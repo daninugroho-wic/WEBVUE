@@ -1,94 +1,90 @@
 require("dotenv").config();
 
 const express = require("express");
-const mongoose = require("mongoose");
 const cors = require("cors");
 const http = require("http");
-const { Server } = require("socket.io");
 
-// Import services & routes
-const { initializeWhatsApp, whatsappEvents } = require("./config/whatsapp");
-const instagramService = require("./config/instagram");
-const telegramService = require("./config/telegram");
+// Import configurations and services
+const connectDB = require("./src/config/database");
+const initializeSocket = require("./src/config/socket");
+const initializeServices = require("./src/config/services");
+
+// Import routes
 const authRoutes = require("./src/routes/authRoutes");
-const chatController = require("./src/controller/ChatController");
 const laporanRoutes = require("./src/routes/laporanRoutes");
+const chatRoutes = require("./src/routes/chatRoutes");
+const teleRoutes = require("./src/routes/teleRoutes"); // Pastikan ini ada
 
 // Inisialisasi app & server
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
 const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Socket.io connection
-io.on("connection", (socket) => {
-  console.log("Frontend connected via socket:", socket.id);
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('❌ Unhandled error:', err.stack);
+  res.status(500).json({
+    success: false,
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+  });
 });
 
-// Emit pesan baru ke semua client
-function emitNewMessage(message) {
-  io.emit("new-message", message);
-}
+// Initialize socket
+const io = initializeSocket(server);
+app.set('io', io); // Set io ke app agar bisa diakses di controller
 
-// Listen event dari WhatsApp dan emit via socket.io
-whatsappEvents.on("new-message", (message) => {
-  console.log("Pesan baru dari WhatsApp, kirim ke frontend:", message);
-  emitNewMessage(message);
+// Routes
+app.use("/api/auth", authRoutes);
+app.use("/api/laporan", laporanRoutes);
+app.use("/api/telegram", teleRoutes); // Route telegram
+app.use("/", chatRoutes);
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    routes: {
+      auth: '/api/auth',
+      laporan: '/api/laporan', 
+      telegram: '/api/telegram',
+      chat: '/'
+    }
+  });
 });
 
-// Koneksi MongoDB dan mulai server
-mongoose
-  .connect(process.env.MONGODB_URI || "mongodb://localhost:27017/chatvue", {})
-  .then(() => {
-    console.log("Koneksi ke MongoDB berhasil");
-
-    // Inisialisasi layanan eksternal
-    initializeWhatsApp();
-    instagramService
-      .login(process.env.IG_USERNAME, process.env.IG_PASSWORD)
-      .then((result) => {
-        if (result.success) console.log("Instagram siap untuk menerima DM.");
-      })
-      .catch((err) => console.error("Login Instagram gagal:", err));
-    telegramService.startBot();
-
-    // API Chat & User routes
-    app.post("/send-message", chatController.sendMessage);
-    app.get("/receive-message", chatController.getReceivedMessages);
-    app.get("/api/messages", chatController.messages);
-    app.get("/api/contacts", chatController.contacts);
-    app.post("/api/contacts", chatController.saveContact);
-    app.post("/api/messages", chatController.newMessage);
-    app.post("/api/users", chatController.getAllUsers);
-    app.post("/api/company-phones", chatController.companyPhone);
-    app.post("/api/conversations", chatController.conversation);
-    app.get("/api/conversations", chatController.saveConversation);
-
+// Connect to database and start server
+connectDB().then(() => {
+  server.listen(PORT, () => {
+    console.log(`✅ Server running on port ${PORT}`);
+    console.log(`🌐 Health check: http://localhost:${PORT}/health`);
+    console.log(`📱 Telegram API: http://localhost:${PORT}/api/telegram`);
     
-    // authRoutes.js
-    app.use('/api', laporanRoutes);
-    app.use("/api/auth", authRoutes);
+    // Initialize services after server starts
+    console.log('🚀 Initializing external services...');
+    try {
+      initializeServices();
+    } catch (error) {
+      console.error('❌ Failed to initialize services:', error);
+    }
+  });
+}).catch((error) => {
+  console.error("❌ Failed to connect to database:", error);
+  process.exit(1);
+});
 
-    // Telegram send message
-    app.post("/api/telegram/send", async (req, res) => {
-      const { chatId, message } = req.body;
-      if (!chatId || !message)
-        return res.status(400).json({ error: "chatId dan message diperlukan" });
-      try {
-        await telegramService.sendMessage(chatId, message);
-        res.json({ status: "Pesan Telegram terkirim" });
-      } catch (err) {
-        res.status(500).json({ error: "Gagal mengirim pesan Telegram" });
-      }
-    });
-
-    // Start server
-    server.listen(PORT, () => {
-      console.log(`Server berjalan di http://localhost:${PORT}`);
-    });
-  })
-  .catch((err) => console.error("Gagal koneksi ke MongoDB:", err));
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('🔄 SIGTERM received, shutting down gracefully...');
+  server.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
+});
