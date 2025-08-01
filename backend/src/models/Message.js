@@ -8,7 +8,7 @@ const MessageSchema = new mongoose.Schema({
   messageType: { type: String, enum: ['text', 'status', 'media'], default: 'text' },
   messageSource: { type: String, enum: ['user', 'system', 'status'], default: 'user' },
   status: { type: String, enum: ['sent', 'received'], default: 'sent' },
-  platform: { type: String, required: true, enum: ['whatsapp', 'telegram', 'instagram'] }, // tambahkan 'telegram', 'instagram'
+  platform: { type: String, required: true, enum: ['whatsapp', 'telegram', 'instagram'] },
   send_by: String,
   createdAt: { type: Date, default: Date.now }
 })

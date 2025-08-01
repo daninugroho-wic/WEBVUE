@@ -38,16 +38,19 @@ const companyQRData = ref(null)
 
 onMounted(() => {
   socket.on('connect', () => {
-    console.log('✅ Connected:', socket.id)
+    console.log('✅ WhatsApp Socket Connected:', socket.id)
   })
 
-  socket.on('connection-status', (status) => {
-    console.log('📡 Status:', status)
-  })
-
+  // Listen for new WhatsApp messages (dari orang lain)
   socket.on('new-message', (message) => {
+    console.log('📨 Received new-message:', message)
     if (message.platform === 'whatsapp') {
-      newMessage.value = message
+      newMessage.value = {
+        ...message,
+        timestamp: message.timestamp || new Date().toISOString()
+      }
+      
+      // Auto-select contact if not selected
       if (!selectedContact.value || selectedContact.value.whatsappId !== message.sender_id) {
         selectedContact.value = { 
           whatsappId: message.sender_id,
@@ -58,23 +61,29 @@ onMounted(() => {
     }
   })
 
+  // Listen for sent messages (dari kita sendiri) - TAMBAHAN INI
   socket.on('message-sent', (message) => {
-    console.log('📤 Sent:', message)
+    console.log('📤 Received message-sent:', message)
+    if (message.platform === 'whatsapp') {
+      newMessage.value = {
+        ...message,
+        timestamp: message.timestamp || new Date().toISOString()
+      }
+    }
   })
 
   socket.on('disconnect', (reason) => {
-    console.log('❌ Disconnected:', reason)
+    console.log('❌ WhatsApp Socket Disconnected:', reason)
   })
 
   socket.on('connect_error', (error) => {
-    console.error('🔴 Connection error:', error)
+    console.error('🔴 WhatsApp Connection error:', error)
   })
 })
 
 onUnmounted(() => {
   socket.off('new-message')
   socket.off('message-sent')
-  socket.off('connection-status')
   socket.disconnect()
 })
 

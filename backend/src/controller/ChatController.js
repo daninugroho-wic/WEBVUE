@@ -1,6 +1,5 @@
 const { client, sendWhatsAppMessage, getClientStatus } = require('../config/whatsapp');
 const Message = require('../models/Message');
-const Contact = require('../models/Contact');
 const Conversation = require('../models/Conversation');
 const CompanyPhone = require('../models/CompanyPhone');
 
@@ -25,7 +24,6 @@ const sendMessage = async (req, res) => {
     body: req.body
   });
 
-  // Validasi input
   if (!number || !message) {
     console.log('❌ Validation failed: missing number or message');
     return res.status(400).json({ 
@@ -35,7 +33,6 @@ const sendMessage = async (req, res) => {
   }
 
   try {
-    // Cek status WhatsApp client
     const status = getClientStatus();
     console.log('📱 WhatsApp client status:', status);
     
@@ -49,7 +46,6 @@ const sendMessage = async (req, res) => {
 
     console.log('📤 Attempting to send message via WhatsApp...');
 
-    // Kirim pesan menggunakan fungsi yang sudah disempurnakan
     const result = await sendWhatsAppMessage(number, message, sender_id);
 
     console.log('✅ Message send result:', result);
@@ -80,7 +76,7 @@ const sendMessage = async (req, res) => {
   }
 };
 
-// Ambil pesan berdasarkan sender dengan filtering yang lebih baik
+// Ambil pesan berdasarkan sender
 const getMessagesBySender = async (req, res) => {
   const { sender } = req.query;
   
@@ -92,12 +88,10 @@ const getMessagesBySender = async (req, res) => {
   }
 
   try {
-    // Cari conversation berdasarkan sender
+    // Cari conversation berdasarkan contact_id
     const conversation = await Conversation.findOne({
-      $or: [
-        { sender: sender },
-        { receiver: sender }
-      ]
+      platform: 'whatsapp',
+      contact_id: sender
     });
 
     if (!conversation) {
@@ -110,9 +104,9 @@ const getMessagesBySender = async (req, res) => {
     // Ambil semua pesan dalam conversation ini
     const messages = await Message.find({ 
       conversation_id: conversation._id,
-      messageType: 'text' // Hanya pesan teks
+      platform: 'whatsapp'
     })
-    .sort({ createdAt: 1 }) // Urutkan berdasarkan waktu
+    .sort({ createdAt: 1 })
     .lean();
 
     const formattedMessages = messages.map(msg => ({
@@ -123,7 +117,8 @@ const getMessagesBySender = async (req, res) => {
       status: msg.status,
       send_by: msg.send_by,
       created_at: msg.createdAt,
-      timestamp: msg.createdAt
+      timestamp: msg.createdAt,
+      messageSource: msg.messageSource
     }));
 
     console.log(`📋 Retrieved ${formattedMessages.length} messages for sender: ${sender}`);
@@ -143,7 +138,7 @@ const getReceivedMessages = async (req, res) => {
   try {
     const messages = await Message.find({ 
       status: 'received',
-      messageType: 'text'
+      platform: 'whatsapp'
     })
     .sort({ createdAt: -1 })
     .limit(50)
@@ -169,55 +164,37 @@ const getReceivedMessages = async (req, res) => {
   }
 };
 
-// Ambil daftar kontak dengan pesan terakhir
-const contacts = async (req, res) => {
+// Ambil daftar kontak dari conversations (menggantikan contacts)
+const getConversations = async (req, res) => {
+  const { platform = 'whatsapp' } = req.query;
+
   try {
-    // Ambil semua conversation yang unik
-    const conversations = await Conversation.find()
-      .sort({ updatedAt: -1 })
+    const conversations = await Conversation.find({ platform })
+      .sort({ last_message_time: -1 })
       .lean();
 
-    const contactsWithMessages = await Promise.all(
-      conversations.map(async (conv) => {
-        // Ambil pesan terakhir dari conversation ini
-        const lastMessage = await Message.findOne({ 
-          conversation_id: conv._id,
-          messageType: 'text'
-        })
-        .sort({ createdAt: -1 })
-        .lean();
+    const conversationsWithDetails = conversations.map(conv => ({
+      _id: conv._id,
+      whatsapp_id: conv.whatsapp_id,
+      contact_id: conv.contact_id,
+      contact_name: conv.contact_name,
+      phone_number: conv.phone_number,
+      last_message: conv.last_message || 'Tidak ada pesan',
+      last_message_time: conv.last_message_time || conv.createdAt,
+      unread_count: conv.unread_count || 0,
+      is_blocked: conv.is_blocked || false,
+      profile_pic_url: conv.profile_pic_url
+    }));
 
-        // Ambil info kontak jika ada
-        const contactInfo = await Contact.findOne({ 
-          whatsappId: conv.sender 
-        }).lean();
-
-        return {
-          whatsappId: conv.sender,
-          contactNumber: conv.sender,
-          name: contactInfo?.name || conv.sender.replace('@c.us', ''),
-          phoneNumber: conv.sender.replace('@c.us', ''),
-          lastMessage: lastMessage ? lastMessage.text : 'Tidak ada pesan',
-          lastTimestamp: lastMessage ? lastMessage.createdAt : conv.createdAt,
-          isBlocked: contactInfo?.isBlocked || false
-        };
-      })
-    );
-
-    // Urutkan berdasarkan pesan terakhir
-    contactsWithMessages.sort((a, b) => 
-      new Date(b.lastTimestamp) - new Date(a.lastTimestamp)
-    );
-
-    console.log(`📋 Retrieved ${contactsWithMessages.length} contacts`);
+    console.log(`📋 Retrieved ${conversationsWithDetails.length} ${platform} conversations`);
 
     res.json({ 
       success: true, 
-      contacts: contactsWithMessages 
+      conversations: conversationsWithDetails 
     });
 
   } catch (error) {
-    handleError(res, error, "Gagal mengambil daftar kontak");
+    handleError(res, error, "Gagal mengambil daftar percakapan");
   }
 };
 
@@ -234,45 +211,81 @@ const getWhatsAppStatus = async (req, res) => {
   }
 };
 
-// Simpan kontak baru
-const saveContact = async (req, res) => {
-  const { whatsappId, name, phoneNumber } = req.body;
+// Simpan conversation baru (menggantikan saveContact)
+const saveConversation = async (req, res) => {
+  const { platform, contact_id, contact_name, whatsapp_id, phone_number } = req.body;
 
-  if (!whatsappId) {
+  if (!platform || !contact_id) {
     return res.status(400).json({ 
       success: false, 
-      error: "WhatsApp ID diperlukan" 
+      error: "Platform dan contact_id diperlukan" 
     });
   }
 
   try {
-    // Cek apakah kontak sudah ada
-    const existingContact = await Contact.findOne({ whatsappId });
-    if (existingContact) {
+    // Cek apakah conversation sudah ada
+    const existingConversation = await Conversation.findOne({ 
+      platform, 
+      contact_id 
+    });
+
+    if (existingConversation) {
       return res.status(400).json({ 
         success: false, 
-        message: "Kontak sudah ada" 
+        message: "Conversation sudah ada" 
       });
     }
 
-    // Buat kontak baru
-    const newContact = new Contact({
-      whatsappId,
-      name: name || whatsappId.replace('@c.us', ''),
-      phoneNumber: phoneNumber || whatsappId.replace('@c.us', ''),
-      lastSeen: new Date()
+    // Buat conversation baru
+    const newConversation = new Conversation({
+      platform,
+      contact_id,
+      contact_name: contact_name || contact_id.replace('@c.us', ''),
+      whatsapp_id: platform === 'whatsapp' ? (whatsapp_id || contact_id) : undefined,
+      phone_number: platform === 'whatsapp' ? (phone_number || contact_id.replace('@c.us', '')) : undefined,
+      last_message_time: new Date()
     });
 
-    await newContact.save();
-    console.log('✅ Kontak baru disimpan:', whatsappId);
+    await newConversation.save();
+    console.log('✅ Conversation baru disimpan:', contact_id);
 
     res.status(201).json({ 
       success: true, 
-      contact: newContact 
+      conversation: newConversation 
     });
 
   } catch (error) {
-    handleError(res, error, "Gagal menyimpan kontak");
+    handleError(res, error, "Gagal menyimpan conversation");
+  }
+};
+
+// Mark conversation as read
+const markAsRead = async (req, res) => {
+  const { conversationId } = req.params;
+
+  try {
+    const conversation = await Conversation.findByIdAndUpdate(
+      conversationId,
+      { unread_count: 0 },
+      { new: true }
+    );
+
+    if (!conversation) {
+      return res.status(404).json({
+        success: false,
+        message: "Conversation tidak ditemukan"
+      });
+    }
+
+    console.log('✅ Conversation marked as read:', conversationId);
+
+    res.json({
+      success: true,
+      message: "Conversation ditandai sudah dibaca"
+    });
+
+  } catch (error) {
+    handleError(res, error, "Gagal menandai conversation sebagai dibaca");
   }
 };
 
@@ -280,7 +293,8 @@ module.exports = {
   sendMessage,
   getMessagesBySender,
   getReceivedMessages,
-  contacts,
-  saveContact,
-  getWhatsAppStatus
+  getConversations,
+  saveConversation,
+  getWhatsAppStatus,
+  markAsRead
 };

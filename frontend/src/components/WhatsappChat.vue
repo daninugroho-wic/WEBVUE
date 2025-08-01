@@ -114,9 +114,10 @@ const props = defineProps({
     showCompanyQR: Object
 })
 
+const emit = defineEmits(['message-sent'])
+
 const messages = ref([])
 const inputMessage = ref("")
-const currentUserId = "user_3"
 const chatContainer = ref(null)
 const isUserNearBottom = ref(true)
 const isLoading = ref(false)
@@ -204,8 +205,13 @@ watch(() => props.newMessage, async (newMsg) => {
         props.selectedContact?.contactNumber ||
         props.selectedContact?.phoneNumber
 
-    if (selectedContactId && newMsg.sender_id === selectedContactId) {
-        const exists = messages.value.find(m => m.message_id === newMsg.message_id)
+    if (selectedContactId && (newMsg.sender_id === selectedContactId || newMsg.receiver_id === selectedContactId)) {
+        // Cek apakah pesan sudah ada (cegah duplikasi)
+        const exists = messages.value.find(m => 
+            m.message_id === newMsg.message_id || 
+            (m.text === newMsg.text && Math.abs(new Date(m.created_at) - new Date(newMsg.timestamp)) < 2000)
+        )
+        
         if (!exists) {
             messages.value.push({
                 message_id: newMsg.message_id,
@@ -213,11 +219,14 @@ watch(() => props.newMessage, async (newMsg) => {
                 receiver_id: newMsg.receiver_id,
                 text: newMsg.text,
                 created_at: newMsg.timestamp,
-                send_by: 'user'
+                send_by: newMsg.messageSource === 'user' ? 'user' : 'system',
+                timestamp: newMsg.timestamp
             })
 
             await nextTick()
-            scrollToBottom()
+            if (isUserNearBottom.value) {
+                scrollToBottom()
+            }
         }
     }
 })
@@ -269,12 +278,11 @@ const loadMessages = async (contact) => {
     }
 }
 
-// Send message function
+// Send message function - DIPERBAIKI
 const sendMessage = async () => {
     if (!inputMessage.value.trim() || !props.selectedContact) return
 
     const messageText = inputMessage.value.trim()
-    const tempId = `temp_${Date.now()}`
 
     const targetNumber = props.selectedContact.whatsappId ||
         props.selectedContact.contactNumber ||
@@ -286,34 +294,30 @@ const sendMessage = async () => {
         return
     }
 
-    const tempMessage = {
-        message_id: tempId,
-        sender_id: currentWhatsAppId.value || currentUserId,
-        receiver_id: targetNumber,
-        text: messageText,
-        created_at: new Date().toISOString(),
-        send_by: "system"
-    }
-
-    messages.value.push(tempMessage)
+    // Clear input immediately
     inputMessage.value = ""
 
-    await nextTick()
-    scrollToBottom()
-
     try {
+        // Kirim pesan tanpa menambahkan tempMessage dulu
         const response = await axios.post("http://localhost:3000/send-message", {
             number: targetNumber,
-            message: messageText,
-            sender_id: currentUserId
+            message: messageText
         })
 
         if (response.data.success) {
             console.log('✅ Message sent successfully')
-            const tempIndex = messages.value.findIndex(m => m.message_id === tempId)
-            if (tempIndex !== -1) {
-                messages.value[tempIndex].message_id = response.data.messageId || tempId
-            }
+
+            // Emit message sent event
+            emit('message-sent', {
+                targetNumber,
+                messageText,
+                messageId: response.data.messageId,
+                timestamp: response.data.timestamp
+            })
+
+            // Pesan akan ditambahkan via socket event 'message-sent'
+            // Tidak perlu menambahkan manual di sini
+            
         } else {
             throw new Error(response.data.error || 'Gagal mengirim pesan')
         }
@@ -321,10 +325,8 @@ const sendMessage = async () => {
     } catch (error) {
         console.error("❌ Error sending message:", error)
 
-        const tempIndex = messages.value.findIndex(m => m.message_id === tempId)
-        if (tempIndex !== -1) {
-            messages.value.splice(tempIndex, 1)
-        }
+        // Restore input if failed
+        inputMessage.value = messageText
 
         let errorMessage = 'Gagal mengirim pesan'
         if (error.response?.data?.error) {

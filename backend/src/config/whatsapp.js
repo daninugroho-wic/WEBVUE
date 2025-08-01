@@ -4,7 +4,6 @@ const EventEmitter = require('events');
 
 const Message = require('../models/Message');
 const Conversation = require('../models/Conversation');
-const Contact = require('../models/Contact');
 const CompanyPhone = require('../models/CompanyPhone');
 
 const MAX_RESTART_ATTEMPTS = 5;
@@ -76,35 +75,40 @@ async function ensureDefaultCompanyPhone() {
   }
 }
 
-// Simpan atau update kontak
-async function saveOrUpdateContact(contactId, contactInfo = {}) {
+// Simpan atau update conversation (menggantikan saveOrUpdateContact)
+async function saveOrUpdateConversation(contactId, contactInfo = {}) {
   try {
-    let contact = await Contact.findOne({ whatsappId: contactId });
+    let conversation = await Conversation.findOne({ 
+      platform: 'whatsapp',
+      contact_id: contactId 
+    });
     
-    if (!contact) {
-      // Buat kontak baru
-      contact = new Contact({
-        whatsappId: contactId,
-        name: contactInfo.name || contactInfo.pushname || null,
-        phoneNumber: contactId.replace('@c.us', ''),
-        profilePicUrl: contactInfo.profilePicUrl || null,
-        lastSeen: new Date()
+    if (!conversation) {
+      // Buat conversation baru
+      conversation = new Conversation({
+        platform: 'whatsapp',
+        contact_id: contactId,
+        contact_name: contactInfo.name || contactInfo.pushname || contactId.replace('@c.us', ''),
+        whatsapp_id: contactId,
+        phone_number: contactId.replace('@c.us', ''),
+        profile_pic_url: contactInfo.profilePicUrl || null,
+        last_message_time: new Date()
       });
-      await contact.save();
-      console.log('✅ Kontak baru disimpan:', contactId);
+      await conversation.save();
+      console.log('✅ Conversation baru disimpan:', contactId);
     } else {
-      // Update kontak yang sudah ada
+      // Update conversation yang sudah ada
       if (contactInfo.name || contactInfo.pushname) {
-        contact.name = contactInfo.name || contactInfo.pushname;
+        conversation.contact_name = contactInfo.name || contactInfo.pushname;
       }
-      contact.lastSeen = new Date();
-      await contact.save();
-      console.log('✅ Kontak diupdate:', contactId);
+      conversation.last_message_time = new Date();
+      await conversation.save();
+      console.log('✅ Conversation diupdate:', contactId);
     }
     
-    return contact;
+    return conversation;
   } catch (error) {
-    console.error('❌ Gagal menyimpan/update kontak:', error);
+    console.error('❌ Gagal menyimpan/update conversation:', error);
     return null;
   }
 }
@@ -119,26 +123,16 @@ async function handleIncomingMessage(message) {
   try {
     console.log('📨 Pesan masuk dari:', message.from, '| Isi:', message.body);
 
-    // Simpan atau update kontak
+    // Simpan atau update conversation
     const contactInfo = await client.getContactById(message.from);
-    await saveOrUpdateContact(message.from, {
+    const conversation = await saveOrUpdateConversation(message.from, {
       name: contactInfo.name,
       pushname: contactInfo.pushname
     });
 
-    // Cari atau buat conversation
-    let conversation = await Conversation.findOne({
-      sender: message.from,
-      receiver: client.info.wid._serialized,
-    });
-
     if (!conversation) {
-      conversation = new Conversation({
-        sender: message.from,
-        receiver: client.info.wid._serialized,
-      });
-      await conversation.save();
-      console.log('✅ Percakapan baru dibuat:', conversation._id);
+      console.error('❌ Gagal membuat/update conversation');
+      return;
     }
 
     // Tentukan tipe pesan
@@ -166,6 +160,13 @@ async function handleIncomingMessage(message) {
     });
 
     await newMessage.save();
+    
+    // Update last message di conversation
+    conversation.last_message = message.body;
+    conversation.last_message_time = new Date();
+    conversation.unread_count += 1;
+    await conversation.save();
+
     console.log('✅ Pesan berhasil disimpan ke database');
 
     // Emit event untuk real-time update
@@ -182,7 +183,6 @@ async function handleIncomingMessage(message) {
     };
 
     whatsappEvents.emit('new-message', messageData);
-    // console.log('✅ Event new-message dipancarkan');
 
   } catch (error) {
     if (error.message.includes('Execution context was destroyed')) {
@@ -203,7 +203,6 @@ async function sendWhatsAppMessage(phoneNumber, messageText, userId = 'system') 
     // Format nomor telepon
     let formattedNumber = phoneNumber;
     if (!phoneNumber.includes('@c.us')) {
-      // Hapus karakter non-digit
       const cleanNumber = phoneNumber.replace(/\D/g, '');
       formattedNumber = `${cleanNumber}@c.us`;
     }
@@ -216,14 +215,17 @@ async function sendWhatsAppMessage(phoneNumber, messageText, userId = 'system') 
 
     // Cari atau buat conversation
     let conversation = await Conversation.findOne({
-      sender: formattedNumber,
-      receiver: client.info.wid._serialized,
+      platform: 'whatsapp',
+      contact_id: formattedNumber
     });
 
     if (!conversation) {
       conversation = new Conversation({
-        sender: formattedNumber,
-        receiver: client.info.wid._serialized,
+        platform: 'whatsapp',
+        contact_id: formattedNumber,
+        contact_name: formattedNumber.replace('@c.us', ''),
+        whatsapp_id: formattedNumber,
+        phone_number: formattedNumber.replace('@c.us', ''),
       });
       await conversation.save();
     }
@@ -235,13 +237,19 @@ async function sendWhatsAppMessage(phoneNumber, messageText, userId = 'system') 
       sender_id: client.info.wid._serialized,
       receiver_id: formattedNumber,
       messageType: 'text',
-      messageSource: 'user',      // pastikan sesuai enum
-      status: 'sent',             // pastikan sesuai enum
-      platform: 'whatsapp',       // WAJIB SESUAI ENUM
+      messageSource: 'user',
+      status: 'sent',
+      platform: 'whatsapp',
       send_by: userId === 'system' ? 'system' : 'user',
     });
 
     await newMessage.save();
+    
+    // Update last message di conversation
+    conversation.last_message = messageText;
+    conversation.last_message_time = new Date();
+    await conversation.save();
+
     console.log('✅ Pesan terkirim disimpan ke database');
 
     // Emit event untuk real-time update
@@ -293,14 +301,12 @@ function initializeWhatsApp() {
     
     await ensureDefaultCompanyPhone();
     
-    // Test koneksi
     console.log('🔄 Testing WhatsApp connection...');
   });
 
   client.on('message', handleIncomingMessage);
 
   client.on('message_create', (message) => {
-    // Handle pesan yang dibuat (termasuk pesan yang dikirim dari web)
     if (message.fromMe) {
       console.log('📤 Pesan terkirim dari web:', message.body);
     }
@@ -326,11 +332,9 @@ function initializeWhatsApp() {
     console.error('❌ WhatsApp Client Error:', error);
   });
 
-  // Initialize client
   client.initialize();
 }
 
-// Fungsi untuk mendapatkan status client
 function getClientStatus() {
   return {
     isReady: client ? client.info !== undefined : false,
