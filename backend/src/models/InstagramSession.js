@@ -1,8 +1,17 @@
 const mongoose = require("mongoose");
 
-const InstagramSessionSchema = new mongoose.Schema({
-  sessionData: { type: Object, required: true },
-},
+const InstagramSessionSchema = new mongoose.Schema(
+  {
+    username: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      match: [/^[a-zA-Z0-9._]{1,30}$/, "Harap masukkan username Instagram yang valid"],
+      index: true,
+    },
+    description: { type: String, default: "", maxlength: 255 },
+  },
   {
     timestamps: true,
   }

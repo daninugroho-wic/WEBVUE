@@ -253,6 +253,7 @@ const loadMessages = async (contact) => {
     isLoading.value = true
     try {
         console.log('Loading messages for:', contactId)
+        // ✅ Ensure endpoint consistency
         const { data } = await axios.get(`http://localhost:3000/api/messages?sender=${contactId}`)
 
         if (data.success) {
@@ -298,7 +299,7 @@ const sendMessage = async () => {
     inputMessage.value = ""
 
     try {
-        // Kirim pesan tanpa menambahkan tempMessage dulu
+        // ✅ Consistent dengan endpoint backend
         const response = await axios.post("http://localhost:3000/send-message", {
             number: targetNumber,
             message: messageText
@@ -307,16 +308,13 @@ const sendMessage = async () => {
         if (response.data.success) {
             console.log('✅ Message sent successfully')
 
-            // Emit message sent event
+            // Emit message sent event (optional, karena akan ada via socket)
             emit('message-sent', {
                 targetNumber,
                 messageText,
                 messageId: response.data.messageId,
                 timestamp: response.data.timestamp
             })
-
-            // Pesan akan ditambahkan via socket event 'message-sent'
-            // Tidak perlu menambahkan manual di sini
             
         } else {
             throw new Error(response.data.error || 'Gagal mengirim pesan')

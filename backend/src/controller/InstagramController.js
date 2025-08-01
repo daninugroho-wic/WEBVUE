@@ -1,7 +1,7 @@
 const { client, sendWhatsAppMessage, getClientStatus } = require('../config/whatsapp');
 const Message = require('../models/Message');
 const Conversation = require('../models/Conversation');
-const CompanyPhone = require('../models/CompanyPhone');
+const WhatsAppSession = require('../models/WhatsAppSession'); // ✅ Updated import
 
 // Helper function untuk menangani kesalahan
 const handleError = (res, error, customMessage = 'Terjadi kesalahan') => {
@@ -164,7 +164,7 @@ const getReceivedMessages = async (req, res) => {
   }
 };
 
-// Ambil daftar kontak dari conversations (menggantikan contacts)
+// Ambil daftar kontak dari conversations
 const getConversations = async (req, res) => {
   const { platform = 'whatsapp' } = req.query;
 
@@ -173,6 +173,7 @@ const getConversations = async (req, res) => {
       .sort({ last_message_time: -1 })
       .lean();
 
+    // ✅ Removed unread_count since we removed it from models
     const conversationsWithDetails = conversations.map(conv => ({
       _id: conv._id,
       whatsapp_id: conv.whatsapp_id,
@@ -181,7 +182,6 @@ const getConversations = async (req, res) => {
       phone_number: conv.phone_number,
       last_message: conv.last_message || 'Tidak ada pesan',
       last_message_time: conv.last_message_time || conv.createdAt,
-      unread_count: conv.unread_count || 0,
       is_blocked: conv.is_blocked || false,
       profile_pic_url: conv.profile_pic_url
     }));
@@ -211,7 +211,7 @@ const getWhatsAppStatus = async (req, res) => {
   }
 };
 
-// Simpan conversation baru (menggantikan saveContact)
+// Simpan conversation baru
 const saveConversation = async (req, res) => {
   const { platform, contact_id, contact_name, whatsapp_id, phone_number } = req.body;
 
@@ -259,33 +259,63 @@ const saveConversation = async (req, res) => {
   }
 };
 
-// Mark conversation as read
-const markAsRead = async (req, res) => {
-  const { conversationId } = req.params;
+// ✅ Removed markAsRead function since we removed unread_count
 
+// ✅ Added new function to get WhatsApp sessions
+const getWhatsAppSessions = async (req, res) => {
   try {
-    const conversation = await Conversation.findByIdAndUpdate(
-      conversationId,
-      { unread_count: 0 },
-      { new: true }
-    );
-
-    if (!conversation) {
-      return res.status(404).json({
-        success: false,
-        message: "Conversation tidak ditemukan"
-      });
-    }
-
-    console.log('✅ Conversation marked as read:', conversationId);
+    const sessions = await WhatsAppSession.find()
+      .sort({ createdAt: -1 })
+      .lean();
 
     res.json({
       success: true,
-      message: "Conversation ditandai sudah dibaca"
+      sessions: sessions
     });
 
   } catch (error) {
-    handleError(res, error, "Gagal menandai conversation sebagai dibaca");
+    handleError(res, error, "Gagal mengambil WhatsApp sessions");
+  }
+};
+
+// ✅ Added new function to save WhatsApp session
+const saveWhatsAppSession = async (req, res) => {
+  const { phone_number, description } = req.body;
+
+  if (!phone_number) {
+    return res.status(400).json({ 
+      success: false, 
+      error: "Nomor telepon diperlukan" 
+    });
+  }
+
+  try {
+    // Cek apakah session sudah ada
+    const existingSession = await WhatsAppSession.findOne({ phone_number });
+
+    if (existingSession) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "WhatsApp session sudah ada" 
+      });
+    }
+
+    // Buat session baru
+    const newSession = new WhatsAppSession({
+      phone_number,
+      description: description || 'WhatsApp Session'
+    });
+
+    await newSession.save();
+    console.log('✅ WhatsApp session baru disimpan:', phone_number);
+
+    res.status(201).json({ 
+      success: true, 
+      session: newSession 
+    });
+
+  } catch (error) {
+    handleError(res, error, "Gagal menyimpan WhatsApp session");
   }
 };
 
@@ -296,5 +326,6 @@ module.exports = {
   getConversations,
   saveConversation,
   getWhatsAppStatus,
-  markAsRead
+  getWhatsAppSessions,    // ✅ New function
+  saveWhatsAppSession     // ✅ New function
 };

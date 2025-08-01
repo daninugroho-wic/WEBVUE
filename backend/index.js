@@ -12,8 +12,9 @@ const initializeServices = require("./src/config/services");
 // Import routes
 const authRoutes = require("./src/routes/authRoutes");
 const laporanRoutes = require("./src/routes/laporanRoutes");
-const chatRoutes = require("./src/routes/chatRoutes");
-const teleRoutes = require("./src/routes/teleRoutes"); // Pastikan ini ada
+const whatsappRoutes = require("./src/routes/whatsappRoutes");
+const teleRoutes = require("./src/routes/teleRoutes");
+const instagramRoutes = require("./src/routes/instagramRoutes"); // ✅ Add this
 
 // Inisialisasi app & server
 const app = express();
@@ -42,8 +43,9 @@ app.set('io', io); // Set io ke app agar bisa diakses di controller
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/laporan", laporanRoutes);
-app.use("/api/telegram", teleRoutes); // Route telegram
-app.use("/", chatRoutes);
+app.use("/api/telegram", teleRoutes);
+app.use("/api/instagram", instagramRoutes); // ✅ Add this
+app.use("/", whatsappRoutes); // ✅ GANTI dari chatRoutes
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -55,7 +57,8 @@ app.get('/health', (req, res) => {
       auth: '/api/auth',
       laporan: '/api/laporan', 
       telegram: '/api/telegram',
-      chat: '/'
+      instagram: '/api/instagram', // ✅ Add this
+      whatsapp: '/' // ✅ UPDATE description
     }
   });
 });
@@ -66,6 +69,7 @@ connectDB().then(() => {
     console.log(`✅ Server running on port ${PORT}`);
     console.log(`🌐 Health check: http://localhost:${PORT}/health`);
     console.log(`📱 Telegram API: http://localhost:${PORT}/api/telegram`);
+    console.log(`📱 WhatsApp API: http://localhost:${PORT}/`); // ✅ UPDATE log message
     
     // Initialize services after server starts
     console.log('🚀 Initializing external services...');

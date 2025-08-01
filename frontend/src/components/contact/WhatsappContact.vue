@@ -98,7 +98,6 @@ async function fetchContacts() {
         phoneNumber: conv.phone_number || conv.contact_id?.replace('@c.us', ''),
         lastMessage: conv.last_message || 'Tidak ada pesan',
         lastTimestamp: conv.last_message_time || null,
-        // unreadCount: 0, // Set ke 0 atau hapus property ini
         conversationId: conv._id
       }))
     }
@@ -128,7 +127,7 @@ async function saveConversationToDatabase(contact) {
   }
 }
 
-// Get company phone number from WhatsApp status
+// ✅ Updated - Get company phone from WhatsApp sessions
 async function getCompanyPhone() {
   try {
     const { data } = await axios.get("http://localhost:3000/api/whatsapp/status")
@@ -137,6 +136,19 @@ async function getCompanyPhone() {
     }
   } catch (error) {
     console.error("Gagal mengambil nomor perusahaan:", error)
+    
+    // ✅ Fallback - coba ambil dari WhatsApp sessions
+    try {
+      const sessionData = await axios.get("http://localhost:3000/api/whatsapp/sessions")
+      if (sessionData.data.success && sessionData.data.sessions.length > 0) {
+        const activeSession = sessionData.data.sessions.find(s => s.is_active) || sessionData.data.sessions[0]
+        if (activeSession) {
+          companyPhone.value = activeSession.phone_number
+        }
+      }
+    } catch (sessionError) {
+      console.error("Gagal mengambil session WhatsApp:", sessionError)
+    }
   }
 }
 
@@ -163,8 +175,7 @@ watch(() => props.newMessage, (msg) => {
       name: msg.sender_id.replace('@c.us', ''),
       phoneNumber: msg.sender_id.replace('@c.us', ''),
       lastMessage: msg.text,
-      lastTimestamp: msg.timestamp,
-      // unreadCount: 0 // Set ke 0 atau hapus
+      lastTimestamp: msg.timestamp
     }
 
     contacts.value.unshift(newContact)
@@ -174,7 +185,6 @@ watch(() => props.newMessage, (msg) => {
 
 function selectContact(contact) {
   selectedContactId.value = contact.whatsappId || contact.contactNumber
-
   emit("select-contact", contact)
 }
 
@@ -201,14 +211,3 @@ onMounted(async () => {
   await fetchContacts()
 })
 </script>
-
-<style scoped>
-.hide-scrollbar {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.hide-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-</style>

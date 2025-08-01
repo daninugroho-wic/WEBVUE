@@ -4,7 +4,7 @@ const EventEmitter = require('events');
 
 const Message = require('../models/Message');
 const Conversation = require('../models/Conversation');
-const CompanyPhone = require('../models/CompanyPhone');
+const WhatsAppSession = require('../models/WhatsAppSession'); // ✅ Updated import
 
 const MAX_RESTART_ATTEMPTS = 5;
 let restartAttempts = 0;
@@ -54,28 +54,28 @@ async function restartClient() {
   }
 }
 
-// Simpan nomor perusahaan
-async function ensureDefaultCompanyPhone() {
+// ✅ Updated function name and model
+async function ensureDefaultWhatsAppSession() {
   try {
     if (!client.info || !client.info.wid) return;
 
-    let companyPhoneNumber = client.info.wid._serialized.replace('@c.us', '');
+    let phoneNumber = client.info.wid._serialized.replace('@c.us', '');
 
-    const existing = await CompanyPhone.findOne({ phone_number: companyPhoneNumber });
+    const existing = await WhatsAppSession.findOne({ phone_number: phoneNumber });
     if (!existing) {
-      const newCompanyPhone = new CompanyPhone({
-        phone_number: companyPhoneNumber,
-        description: "Default WhatsApp Phone",
+      const newSession = new WhatsAppSession({
+        phone_number: phoneNumber,
+        description: "Default WhatsApp Session",
       });
-      await newCompanyPhone.save();
-      console.log("✅ Nomor perusahaan berhasil disimpan:", companyPhoneNumber);
+      await newSession.save();
+      console.log("✅ WhatsApp session berhasil disimpan:", phoneNumber);
     }
   } catch (error) {
-    console.error('❌ Gagal menyimpan nomor perusahaan:', error);
+    console.error('❌ Gagal menyimpan WhatsApp session:', error);
   }
 }
 
-// Simpan atau update conversation (menggantikan saveOrUpdateContact)
+// Simpan atau update conversation
 async function saveOrUpdateConversation(contactId, contactInfo = {}) {
   try {
     let conversation = await Conversation.findOne({ 
@@ -161,10 +161,9 @@ async function handleIncomingMessage(message) {
 
     await newMessage.save();
     
-    // Update last message di conversation
+    // Update last message di conversation (tanpa unread_count)
     conversation.last_message = message.body;
     conversation.last_message_time = new Date();
-    conversation.unread_count += 1;
     await conversation.save();
 
     console.log('✅ Pesan berhasil disimpan ke database');
@@ -299,7 +298,7 @@ function initializeWhatsApp() {
     console.log('✅ WhatsApp Client siap digunakan!');
     console.log('📱 Nomor aktif:', client.info.wid._serialized);
     
-    await ensureDefaultCompanyPhone();
+    await ensureDefaultWhatsAppSession(); // ✅ Updated function call
     
     console.log('🔄 Testing WhatsApp connection...');
   });
