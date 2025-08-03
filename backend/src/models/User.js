@@ -8,7 +8,7 @@ const UserSchema = new mongoose.Schema({
     password: { type: String, required: true },
     alamat: { type: String, default: '' },
     status: { type: String, enum: ['On', 'Off'], default: 'On' },
-    lastLogin: { type: Date }, // Tambahkan field ini
+    lastLogin: { type: Date },
 }, {
     timestamps: true,
 });
