@@ -1,10 +1,10 @@
 const mongoose = require('mongoose');
 
 const LaporanSchema = new mongoose.Schema({
-  namaCustomer: String,
-  noTelephone: String,
-  laporanCustomer: String,
-  lokasi: String,
+  cusName: String,
+  cusPhone: String,
+  cusLap: String,
+  location: String,
   platform: String,
   team: String,
   status: String,

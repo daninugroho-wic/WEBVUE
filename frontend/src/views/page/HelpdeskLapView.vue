@@ -78,7 +78,7 @@
               <tr>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Customer</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No. Telephone</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telephone</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Laporan</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lokasi</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Platform</th>
@@ -96,20 +96,20 @@
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="flex items-center">
                     <div class="ml-4">
-                      <div class="text-sm font-medium text-gray-900">{{ laporan.namaCustomer }}</div>
+                      <div class="text-sm font-medium text-gray-900">{{ laporan.cusName }}</div>
                     </div>
                   </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {{ laporan.noTelephone }}
+                  {{ laporan.cusPhone }}
                 </td>
                 <td class="px-6 py-4 text-sm text-gray-900 max-w-xs">
-                  <div class="truncate" :title="laporan.laporanCustomer">
-                    {{ laporan.laporanCustomer }}
+                  <div class="truncate" :title="laporan.cusLap">
+                    {{ laporan.cusLap }}
                   </div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {{ laporan.lokasi }}
+                  {{ laporan.location }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                   <span :class="getPlatformBadgeClass(laporan.platform)"

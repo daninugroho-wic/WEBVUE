@@ -71,12 +71,12 @@
                 placeholder="Masukkan nama customer" />
             </div>
 
-            <!-- No. Telephone -->
+            <!-- Telephone -->
             <div>
-              <label for="noTelephone" class="block text-sm font-medium text-gray-700 mb-2">No. Telephone</label>
+              <label for="noTelephone" class="block text-sm font-medium text-gray-700 mb-2">Telephone</label>
               <input id="noTelephone" v-model="noTelephone" type="text" required
                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
-                placeholder="Masukkan no. telephone" />
+                placeholder="Masukkan telephone" />
             </div>
 
             <!-- Lokasi -->
@@ -190,13 +190,13 @@ const handleSubmit = async () => {
 
   try {
     const laporanData = {
-      namaCustomer: namaCustomer.value,
-      noTelephone: noTelephone.value,
-      laporanCustomer: laporanCustomer.value,
-      lokasi: lokasi.value,
+      cusName: namaCustomer.value,        // sesuaikan dengan model backend
+      cusPhone: noTelephone.value,        // sesuaikan dengan model backend
+      cusLap: laporanCustomer.value,      // sesuaikan dengan model backend
+      location: lokasi.value,             // sesuaikan dengan model backend
       platform: platform.value,
       team: team.value,
-      // status: status.value,
+      status: status.value,               // aktifkan kembali status
     };
 
     // Kirim data ke backend
@@ -209,7 +209,7 @@ const handleSubmit = async () => {
     lokasi.value = '';
     platform.value = 'whatsapp';
     team.value = '';
-    // status.value = 'progress';
+    status.value = 'progress';
 
     // Show success message and redirect
     alert('Laporan berhasil disimpan!');

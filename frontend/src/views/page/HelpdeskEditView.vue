@@ -89,23 +89,23 @@
               <!-- Nama Customer -->
               <div>
                 <label for="namaCustomer" class="block text-sm font-medium text-gray-700 mb-2">Nama Customer</label>
-                <input id="namaCustomer" v-model="laporan.namaCustomer" type="text" required
+                <input id="namaCustomer" v-model="laporan.cusName" type="text" required
                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
                   placeholder="Masukkan nama customer" />
               </div>
 
-              <!-- No. Telephone -->
+              <!-- Telephone -->
               <div>
-                <label for="noTelephone" class="block text-sm font-medium text-gray-700 mb-2">No. Telephone</label>
-                <input id="noTelephone" v-model="laporan.noTelephone" type="text" required
+                <label for="noTelephone" class="block text-sm font-medium text-gray-700 mb-2">Telephone</label>
+                <input id="noTelephone" v-model="laporan.cusPhone" type="text" required
                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
-                  placeholder="Masukkan no. telephone" />
+                  placeholder="Masukkan telephone" />
               </div>
 
               <!-- Lokasi -->
               <div>
                 <label for="lokasi" class="block text-sm font-medium text-gray-700 mb-2">Lokasi</label>
-                <input id="lokasi" v-model="laporan.lokasi" type="text" required
+                <input id="lokasi" v-model="laporan.location" type="text" required
                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200"
                   placeholder="Masukkan lokasi" />
               </div>
@@ -145,7 +145,7 @@
             <!-- Laporan Customer (Full Width) -->
             <div class="mt-6">
               <label for="laporanCustomer" class="block text-sm font-medium text-gray-700 mb-2">Laporan Customer</label>
-              <textarea id="laporanCustomer" v-model="laporan.laporanCustomer" required rows="4"
+              <textarea id="laporanCustomer" v-model="laporan.cusLap" required rows="4"
                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition duration-200 resize-none"
                 placeholder="Masukkan detail laporan customer..."></textarea>
             </div>
@@ -187,11 +187,12 @@ const route = useRoute();
 const router = useRouter();
 const sidebarOpen = ref(false);
 
+// Update field names untuk sesuai dengan backend
 const laporan = ref({
-  namaCustomer: '',
-  noTelephone: '',
-  laporanCustomer: '',
-  lokasi: '',
+  cusName: '',        // dari namaCustomer
+  cusPhone: '',       // dari noTelephone  
+  cusLap: '',         // dari laporanCustomer
+  location: '',       // dari lokasi
   platform: 'whatsapp',
   team: 'NOC',
   status: 'progress',

@@ -123,7 +123,7 @@
                 <tr>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nama Customer</th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No. Telephone</th>
+                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Telephone</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Laporan</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lokasi</th>
                   <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Platform</th>
@@ -141,18 +141,18 @@
                     {{ idx + 1 }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm font-medium text-gray-900">{{ laporan.namaCustomer }}</div>
+                    <div class="text-sm font-medium text-gray-900">{{ laporan.cusName }}</div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ laporan.noTelephone }}
+                    {{ laporan.cusPhone }}
                   </td>
                   <td class="px-6 py-4 text-sm text-gray-900 max-w-xs">
-                    <div class="truncate" :title="laporan.laporanCustomer">
-                      {{ laporan.laporanCustomer }}
+                    <div class="truncate" :title="laporan.cusLap">
+                      {{ laporan.cusLap }}
                     </div>
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {{ laporan.lokasi }}
+                    {{ laporan.location }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span :class="getPlatformBadgeClass(laporan.platform)"
@@ -331,20 +331,20 @@ function clearFilters() {
 }
 
 function exportToCSV() {
-  const headers = ['No', 'Nama Customer', 'No. Telephone', 'Laporan Customer', 'Lokasi', 'Platform', 'Team', 'Status', 'Tanggal'];
+  const headers = ['No', 'Nama Customer', 'Telephone', 'Laporan Customer', 'Lokasi', 'Platform', 'Team', 'Status', 'Tanggal'];
   const csvContent = [
     headers.join(','),
     ...filteredLaporans.value.map((laporan, index) => [
       index + 1,
-      `"${laporan.namaCustomer}"`,
-      `"${laporan.noTelephone}"`,
-      `"${laporan.laporanCustomer}"`,
-      `"${laporan.lokasi}"`,
+      `"${laporan.cusName}"`,
+      `"${laporan.cusPhone}"`,
+      `"${laporan.cusLap}"`,
+      `"${laporan.location}"`,
       `"${laporan.platform}"`,
       `"${laporan.team}"`,
       `"${laporan.status}"`,
       `"${formatDate(laporan.createdAt)}"`
-    ].join(','))
+    ].join(',')),
   ].join('\n');
 
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
