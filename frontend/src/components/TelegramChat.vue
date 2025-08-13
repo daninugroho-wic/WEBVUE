@@ -295,7 +295,7 @@ textarea {
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
+    background: #3b82f6;
     border-radius: 3px;
 }
 

@@ -114,10 +114,9 @@ const props = defineProps({
     showCompanyQR: Object
 })
 
-const emit = defineEmits(['message-sent'])
-
 const messages = ref([])
 const inputMessage = ref("")
+const currentUserId = "user_3"
 const chatContainer = ref(null)
 const isUserNearBottom = ref(true)
 const isLoading = ref(false)
@@ -152,7 +151,7 @@ async function generateQRCode(phoneNumber) {
             width: 200,
             margin: 2,
             color: {
-                dark: '#166534',
+                dark: '#166534', // Green-800
                 light: '#FFFFFF'
             }
         })
@@ -205,13 +204,8 @@ watch(() => props.newMessage, async (newMsg) => {
         props.selectedContact?.contactNumber ||
         props.selectedContact?.phoneNumber
 
-    if (selectedContactId && (newMsg.sender_id === selectedContactId || newMsg.receiver_id === selectedContactId)) {
-        // Cek apakah pesan sudah ada (cegah duplikasi)
-        const exists = messages.value.find(m => 
-            m.message_id === newMsg.message_id || 
-            (m.text === newMsg.text && Math.abs(new Date(m.created_at) - new Date(newMsg.timestamp)) < 2000)
-        )
-        
+    if (selectedContactId && newMsg.sender_id === selectedContactId) {
+        const exists = messages.value.find(m => m.message_id === newMsg.message_id)
         if (!exists) {
             messages.value.push({
                 message_id: newMsg.message_id,
@@ -219,14 +213,11 @@ watch(() => props.newMessage, async (newMsg) => {
                 receiver_id: newMsg.receiver_id,
                 text: newMsg.text,
                 created_at: newMsg.timestamp,
-                send_by: newMsg.messageSource === 'user' ? 'user' : 'system',
-                timestamp: newMsg.timestamp
+                send_by: 'user'
             })
 
             await nextTick()
-            if (isUserNearBottom.value) {
-                scrollToBottom()
-            }
+            scrollToBottom()
         }
     }
 })
@@ -253,12 +244,12 @@ const loadMessages = async (contact) => {
     isLoading.value = true
     try {
         console.log('Loading messages for:', contactId)
-        // ✅ Ensure endpoint consistency
         const { data } = await axios.get(`http://localhost:3000/api/messages?sender=${contactId}`)
 
         if (data.success) {
+            // loadMessages function
             messages.value = data.messages.map(msg => ({
-                message_id: msg._id,
+                _id: msg._id,
                 sender_id: msg.sender_id,
                 receiver_id: msg.receiver_id,
                 text: msg.text,
@@ -279,11 +270,12 @@ const loadMessages = async (contact) => {
     }
 }
 
-// Send message function - DIPERBAIKI
+// Send message function
 const sendMessage = async () => {
     if (!inputMessage.value.trim() || !props.selectedContact) return
 
     const messageText = inputMessage.value.trim()
+    const tempId = `temp_${Date.now()}`
 
     const targetNumber = props.selectedContact.whatsappId ||
         props.selectedContact.contactNumber ||
@@ -295,27 +287,34 @@ const sendMessage = async () => {
         return
     }
 
-    // Clear input immediately
+    const tempMessage = {
+        message_id: tempId,
+        sender_id: currentWhatsAppId.value || currentUserId,
+        receiver_id: targetNumber,
+        text: messageText,
+        created_at: new Date().toISOString(),
+        send_by: "system"
+    }
+
+    messages.value.push(tempMessage)
     inputMessage.value = ""
 
+    await nextTick()
+    scrollToBottom()
+
     try {
-        // ✅ Consistent dengan endpoint backend
         const response = await axios.post("http://localhost:3000/send-message", {
             number: targetNumber,
-            message: messageText
+            message: messageText,
+            sender_id: currentUserId
         })
 
         if (response.data.success) {
             console.log('✅ Message sent successfully')
-
-            // Emit message sent event (optional, karena akan ada via socket)
-            emit('message-sent', {
-                targetNumber,
-                messageText,
-                messageId: response.data.messageId,
-                timestamp: response.data.timestamp
-            })
-            
+            const tempIndex = messages.value.findIndex(m => m.message_id === tempId)
+            if (tempIndex !== -1) {
+                messages.value[tempIndex].message_id = response.data.messageId || tempId
+            }
         } else {
             throw new Error(response.data.error || 'Gagal mengirim pesan')
         }
@@ -323,8 +322,10 @@ const sendMessage = async () => {
     } catch (error) {
         console.error("❌ Error sending message:", error)
 
-        // Restore input if failed
-        inputMessage.value = messageText
+        const tempIndex = messages.value.findIndex(m => m.message_id === tempId)
+        if (tempIndex !== -1) {
+            messages.value.splice(tempIndex, 1)
+        }
 
         let errorMessage = 'Gagal mengirim pesan'
         if (error.response?.data?.error) {
@@ -371,3 +372,27 @@ onMounted(async () => {
     await getWhatsAppStatus()
 })
 </script>
+<style scoped>
+/* Smooth scrolling */
+.overflow-y-auto {
+    scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+.overflow-y-auto::-webkit-scrollbar {
+    width: 6px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+    background: #22c55e;
+    border-radius: 3px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+</style>

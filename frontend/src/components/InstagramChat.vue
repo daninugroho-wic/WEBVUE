@@ -224,4 +224,27 @@ onMounted(() => {
     -ms-overflow-style: none;
     scrollbar-width: none;
 }
+
+/* Smooth scrolling */
+.overflow-y-auto {
+    scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+.overflow-y-auto::-webkit-scrollbar {
+    width: 6px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+    background: #ef4444;
+    border-radius: 3px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
 </style>
