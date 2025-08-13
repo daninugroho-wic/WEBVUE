@@ -2,11 +2,11 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
 const UserSchema = new mongoose.Schema({
-    role: { type: String, required: true },
-    username: { type: String, required: true, unique: true, trim: true },
-    email: { type: String, required: true, unique: true, trim: true, lowercase: true },
-    password: { type: String, required: true },
-    alamat: { type: String, default: '' },
+    role: { type: String, required: true, maxlength: 20 },
+    username: { type: String, required: true, unique: true, trim: true, minlength: 3, maxlength: 50 },
+    email: { type: String, required: true, unique: true, trim: true, lowercase: true, maxlength: 100 },
+    password: { type: String, required: true, minlength: 6, maxlength: 255 },
+    alamat: { type: String, default: '', maxlength: 500 },
     status: { type: String, enum: ['On', 'Off'], default: 'On' },
     lastLogin: { type: Date },
 }, {

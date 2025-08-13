@@ -38,13 +38,17 @@ const selectedContact = ref(null)
 onMounted(() => {
   console.log('🔌 Connecting to Telegram socket...')
   
-  // Listen for new telegram messages
+  // ✅ UPDATE: Listen sesuai dengan backend emit
   socket.on('new-telegram-message', (data) => {
     console.log('📨 New Telegram message received:', data)
     newMessage.value = {
-      ...data,
-      platform: 'telegram',
-      timestamp: new Date()
+      conversation_id: data.conversation_id,
+      message_id: data.message_id,
+      sender_id: data.sender_id,
+      sender_name: data.sender_name,
+      text: data.text,
+      timestamp: data.timestamp,
+      platform: 'telegram'
     }
   })
 
@@ -81,8 +85,14 @@ function handleSelectContact(contact) {
 // Handle message sent
 function handleMessageSent(messageData) {
   console.log('📤 Message sent:', messageData)
-  // Emit to socket for real-time update
-  socket.emit('telegram-message-sent', messageData)
+  // ✅ UPDATE: Emit sesuai backend expectation
+  socket.emit('telegram-message-sent', {
+    message_id: messageData.message_id,
+    text: messageData.text,
+    chat_id: messageData.chat_id,
+    timestamp: messageData.timestamp,
+    platform: 'telegram'
+  })
 }
 </script>
 

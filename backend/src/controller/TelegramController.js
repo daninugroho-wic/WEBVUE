@@ -1,25 +1,23 @@
 const Message = require('../models/Message');
 const Conversation = require('../models/Conversation');
+const TelegramSession = require('../models/TelegramSession'); // ← ADD THIS
+const telegramService = require('../config/telegram');
 
 class TelegramController {
     // Mendapatkan semua kontak/conversations Telegram
     static async getContacts(req, res) {
         try {
             const conversations = await Conversation.find({ 
-                platform: 'telegram',
-                is_active: true 
+                platform: 'telegram'
             }).sort({ last_message_time: -1 });
 
             const contacts = conversations.map(conv => ({
                 conversation_id: conv._id,
                 telegramId: conv.contact_id,
                 name: conv.contact_name || conv.contact_id,
-                username: conv.telegram_username,
                 lastMessage: conv.last_message || 'Tidak ada pesan',
                 lastTimestamp: conv.last_message_time,
-                unreadCount: conv.unread_count,
-                isBlocked: conv.is_blocked,
-                profilePicUrl: conv.profile_pic_url
+                unreadCount: conv.unread_count
             }));
 
             res.json({
@@ -100,11 +98,8 @@ class TelegramController {
                 });
             }
 
-            // Import telegram service
-            const telegramService = require('../config/telegram');
-            
-            // Kirim ke Telegram API
-            const telegramResponse = await telegramService.sendMessage(chat_id, message);
+            // Ganti pemanggilan fungsi di bawah ini
+            const telegramResponse = await telegramService.sendTelegramMessage(chat_id, message);
 
             // Cari atau buat conversation
             let conversation = await Conversation.findOne({
@@ -116,7 +111,7 @@ class TelegramController {
                 conversation = new Conversation({
                     platform: 'telegram',
                     contact_id: chat_id,
-                    telegram_chat_id: chat_id,
+                    telegram_id: chat_id,  // ← Sync dengan Conversation model
                     last_message: message,
                     last_message_time: new Date()
                 });
@@ -133,12 +128,8 @@ class TelegramController {
                 conversation_id: conversation._id,
                 sender_id: sender_id || 'system',
                 receiver_id: chat_id,
-                message_id: `telegram_${Date.now()}_${Math.random()}`,
                 text: message,
-                messageSource: 'outgoing',
-                status: 'sent',
-                telegram_message_id: telegramResponse.message_id,
-                telegram_chat_id: chat_id
+                status: 'sent'
             });
 
             await newMessage.save();
@@ -148,7 +139,7 @@ class TelegramController {
                 message: 'Pesan berhasil dikirim',
                 data: {
                     message_id: newMessage._id,
-                    telegram_message_id: telegramResponse.message_id,
+                    telegram_message_id: telegramResponse?.message_id,
                     status: 'sent'
                 }
             });
@@ -167,7 +158,7 @@ class TelegramController {
             const { message } = req.body;
 
             if (!message || !message.text) {
-                return res.json({ success: true }); // Skip non-text messages
+                return res.json({ success: true });
             }
 
             const chatId = message.chat.id.toString();
@@ -185,15 +176,13 @@ class TelegramController {
                     platform: 'telegram',
                     contact_id: chatId,
                     contact_name: senderName,
-                    telegram_chat_id: chatId,
-                    telegram_username: message.from.username,
+                    telegram_id: chatId,  // ← Sync dengan model
                     last_message: message.text,
                     last_message_time: new Date(),
                     unread_count: 1
                 });
             } else {
                 conversation.contact_name = senderName;
-                conversation.telegram_username = message.from.username;
                 conversation.last_message = message.text;
                 conversation.last_message_time = new Date();
                 conversation.unread_count += 1;
@@ -206,18 +195,14 @@ class TelegramController {
                 platform: 'telegram',
                 conversation_id: conversation._id,
                 sender_id: senderId,
-                receiver_id: 'system', // Sistem kita
-                message_id: `telegram_${message.message_id}`,
+                receiver_id: 'system',
                 text: message.text,
-                messageSource: 'incoming',
-                status: 'received',
-                telegram_message_id: message.message_id,
-                telegram_chat_id: chatId
+                status: 'received'
             });
 
             await newMessage.save();
 
-            // Emit to socket untuk real-time update
+            // Emit to socket
             const io = req.app.get('io');
             if (io) {
                 io.emit('new-telegram-message', {
@@ -247,18 +232,11 @@ class TelegramController {
 
             const messages = await Message.find({
                 platform: 'telegram',
-                messageSource: 'incoming',
-                is_read: false
+                status: 'received'  // ← Sync dengan Message model
             })
             .populate('conversation_id')
             .sort({ createdAt: -1 })
             .limit(parseInt(limit));
-
-            // Mark as read
-            await Message.updateMany(
-                { _id: { $in: messages.map(m => m._id) } },
-                { is_read: true }
-            );
 
             res.json({
                 success: true,
@@ -267,7 +245,6 @@ class TelegramController {
                     sender_id: msg.sender_id,
                     text: msg.text,
                     created_at: msg.createdAt,
-                    chat_id: msg.telegram_chat_id,
                     conversation: msg.conversation_id
                 }))
             });
@@ -308,6 +285,91 @@ class TelegramController {
             res.status(500).json({
                 success: false,
                 error: 'Gagal menandai pesan sebagai dibaca'
+            });
+        }
+    }
+
+    // Webhook endpoint untuk menerima pesan
+    static webhook(req, res) {
+        console.log('🔔 Webhook Telegram dipanggil:', req.body);
+        try {
+            const botToken = req.params.token;
+            const handler = telegramService.webhookHandler(botToken);
+            return handler(req, res);
+        } catch (error) {
+            console.error('Webhook error:', error);
+            res.status(400).json({ error: 'Invalid bot token' });
+        }
+    }
+
+    // Create session dan initialize bot
+    static async createSession(req, res) {
+        try {
+            const { bot_token, description } = req.body;
+            
+            // Test bot token first
+            const { Telegraf } = require('telegraf');
+            const testBot = new Telegraf(bot_token);
+            await testBot.telegram.getMe(); // Test if token is valid
+            
+            // Save to database
+            const session = new TelegramSession({
+                bot_token,
+                description
+            });
+            await session.save();
+            
+            // Initialize bot
+            await telegramService.initializeBot(bot_token, description);
+            
+            res.json({
+                success: true,
+                message: 'Bot berhasil ditambahkan dan diinisialisasi',
+                session
+            });
+        } catch (error) {
+            console.error('Error creating session:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Token bot tidak valid atau gagal membuat session'
+            });
+        }
+    }
+
+    // ✅ ADD: Get all sessions
+    static async getSessions(req, res) {
+        try {
+            const sessions = await TelegramSession.find().sort({ createdAt: -1 });
+            
+            res.json({
+                success: true,
+                sessions
+            });
+        } catch (error) {
+            console.error('Error getting telegram sessions:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Gagal mengambil session Telegram'
+            });
+        }
+    }
+
+    // ✅ ADD: Delete session
+    static async deleteSession(req, res) {
+        try {
+            const { id } = req.params;
+            
+            await TelegramSession.findByIdAndDelete(id);
+            
+            res.json({
+                success: true,
+                message: 'Session berhasil dihapus'
+            });
+        } catch (error) {
+            console.error('Error deleting telegram session:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Gagal menghapus session'
             });
         }
     }

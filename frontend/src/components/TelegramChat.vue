@@ -3,16 +3,15 @@
         <!-- Chat Header -->
         <div v-if="props.selectedContact" class="bg-white border-b border-blue-200 p-4">
             <div class="flex items-center space-x-3">
-                <div
-                    class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium">
-                    {{ props.selectedContact.name ? props.selectedContact.name.charAt(0).toUpperCase() : 'U' }}
+                <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium">
+                    {{ props.selectedContact.contact_name ? props.selectedContact.contact_name.charAt(0).toUpperCase() : 'U' }}
                 </div>
                 <div>
                     <h3 class="font-medium text-gray-900">
-                        {{ props.selectedContact.name || props.selectedContact.username || props.selectedContact.telegramId }}
+                        {{ props.selectedContact.contact_name || props.selectedContact.contact_id }}
                     </h3>
                     <p class="text-sm text-blue-500">
-                        {{ props.selectedContact.username ? '@' + props.selectedContact.username : props.selectedContact.telegramId }}
+                        {{ props.selectedContact.contact_id }}
                     </p>
                 </div>
             </div>
@@ -40,24 +39,24 @@
                 </div>
             </div>
 
-            <!-- Messages -->
+            <!-- ✅ UPDATE: Messages sesuai backend response -->
             <div v-else class="space-y-3">
                 <div v-for="message in messages" :key="message._id"
                     :class="[
                         'flex',
-                        message.messageSource === 'outgoing' ? 'justify-end' : 'justify-start'
+                        message.status === 'sent' ? 'justify-end' : 'justify-start'
                     ]"
                 >
                     <div :class="[
                         'max-w-xs lg:max-w-md px-4 py-2 rounded-lg shadow',
-                        message.messageSource === 'outgoing'
+                        message.status === 'sent'
                             ? 'bg-blue-500 text-white'
                             : 'bg-white text-gray-900'
                     ]">
                         <p class="text-sm">{{ message.text }}</p>
                         <div class="flex justify-end mt-1">
                             <span class="text-xs opacity-75">
-                                {{ formatTime(message.created_at) }}
+                                {{ formatTime(message.createdAt) }}
                             </span>
                         </div>
                     </div>
@@ -111,33 +110,17 @@ const chatContainer = ref(null)
 const isUserNearBottom = ref(true)
 const loading = ref(false)
 const sending = ref(false)
-const isTyping = ref(false)
-const typingTimeout = ref(null)
 
 // Methods
-function getInitials(name) {
-    return name
-        .split(' ')
-        .map(word => word.charAt(0))
-        .join('')
-        .toUpperCase()
-        .slice(0, 2)
-}
-
 function formatTime(timestamp) {
     if (!timestamp) return ''
-    
     const date = new Date(timestamp)
-    return date.toLocaleTimeString('id-ID', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-    })
+    return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
 }
 
 function handleScroll() {
     const container = chatContainer.value
     if (!container) return
-    
     const threshold = 100
     const position = container.scrollTop + container.clientHeight
     const height = container.scrollHeight
@@ -162,52 +145,36 @@ function scrollToBottom() {
     }
 }
 
-function handleTyping() {
-    // Clear existing timeout
-    if (typingTimeout.value) {
-        clearTimeout(typingTimeout.value)
-    }
-    
-    // Set typing indicator
-    isTyping.value = false // We don't show typing for our own messages
-    
-    // Clear typing after 3 seconds of inactivity
-    typingTimeout.value = setTimeout(() => {
-        isTyping.value = false
-    }, 3000)
-}
-
-function addNewLine() {
-    inputMessage.value += '\n'
-}
-
+// Load messages dari backend
 async function loadMessages() {
     if (!props.selectedContact) return
-    
     loading.value = true
     try {
         const { data } = await axios.get(`http://localhost:3000/api/telegram/messages`, {
-            params: { sender: props.selectedContact.telegramId }
-        })
-        
+    params: { sender: props.selectedContact.contact_id }
+})
         if (data.success) {
-            messages.value = data.messages
+            messages.value = data.messages.map(msg => ({
+                _id: msg._id,
+                text: msg.text,
+                sender_id: msg.sender_id,
+                receiver_id: msg.receiver_id,
+                status: msg.status,
+                createdAt: msg.createdAt,
+                platform: msg.platform
+            }))
             await nextTick()
             scrollToBottom()
-            console.log('✅ Messages loaded:', messages.value.length)
         }
     } catch (error) {
         console.error('❌ Failed to load messages:', error)
-        messages.value = []
+        // Jangan kosongkan messages.value agar bubble tetap ada
     } finally {
         loading.value = false
     }
 }
 
-async function refreshMessages() {
-    await loadMessages()
-}
-
+// Kirim pesan ke backend
 async function sendMessage() {
     if (!inputMessage.value.trim() || !props.selectedContact || sending.value) return
 
@@ -216,13 +183,13 @@ async function sendMessage() {
         _id: `temp_${Date.now()}`,
         text: messageText,
         sender_id: 'system',
-        receiver_id: props.selectedContact.telegramId,
-        messageSource: 'outgoing',
-        status: 'sending',
-        created_at: new Date().toISOString()
+        receiver_id: props.selectedContact.contact_id,
+        status: 'sent',
+        createdAt: new Date().toISOString(),
+        platform: 'telegram'
     }
 
-    // Add to UI immediately
+    // Optimistic update: tampilkan bubble pesan langsung
     messages.value.push(tempMessage)
     inputMessage.value = ""
     await nextTick()
@@ -231,37 +198,31 @@ async function sendMessage() {
     sending.value = true
     try {
         const { data } = await axios.post('http://localhost:3000/api/telegram/send', {
-            chat_id: props.selectedContact.telegramId,
+            chat_id: props.selectedContact.contact_id,
             message: messageText,
             sender_id: 'system'
         })
 
         if (data.success) {
-            // Update temp message with real data
+            // Update temp message dengan data dari backend
             const messageIndex = messages.value.findIndex(m => m._id === tempMessage._id)
             if (messageIndex !== -1) {
                 messages.value[messageIndex] = {
                     ...tempMessage,
                     _id: data.data.message_id,
-                    status: 'sent',
-                    telegram_message_id: data.data.telegram_message_id
+                    status: 'sent'
                 }
             }
-
-            // Emit event for parent component
             emit('message-sent', {
                 message_id: data.data.message_id,
                 text: messageText,
-                chat_id: props.selectedContact.telegramId,
+                chat_id: props.selectedContact.contact_id,
                 timestamp: new Date().toISOString()
             })
-
-            console.log('✅ Message sent successfully')
         }
     } catch (error) {
         console.error('❌ Failed to send message:', error)
-        
-        // Update message status to failed
+        // Update status ke failed, bubble tetap ada
         const messageIndex = messages.value.findIndex(m => m._id === tempMessage._id)
         if (messageIndex !== -1) {
             messages.value[messageIndex].status = 'failed'
@@ -271,61 +232,44 @@ async function sendMessage() {
     }
 }
 
-// Watch for new messages
+// Terima pesan baru dari socket
 watch(() => props.newMessage, (newMsg) => {
     if (!newMsg || !props.selectedContact) return
-    
-    // Only add if message is for current contact
-    if (newMsg.sender_id === props.selectedContact.telegramId || 
-        newMsg.chat_id === props.selectedContact.telegramId) {
-        
-        // Check if message already exists
-        const exists = messages.value.some(m => 
-            m.telegram_message_id === newMsg.telegram_message_id ||
-            m._id === newMsg.message_id
-        )
-        
+    // Hanya tambahkan jika untuk kontak yang aktif
+    if (newMsg.sender_id === props.selectedContact.contact_id ||
+        newMsg.conversation_id === props.selectedContact.conversation_id) {
+        // Cek duplikasi
+        const exists = messages.value.some(m => m._id === newMsg.message_id)
         if (!exists) {
             messages.value.push({
                 _id: newMsg.message_id || `msg_${Date.now()}`,
                 text: newMsg.text,
                 sender_id: newMsg.sender_id,
                 receiver_id: 'system',
-                messageSource: 'incoming',
                 status: 'received',
-                created_at: newMsg.timestamp || new Date().toISOString(),
-                telegram_message_id: newMsg.telegram_message_id
+                createdAt: newMsg.timestamp || new Date().toISOString(),
+                platform: 'telegram'
             })
-            
             scrollToBottomIfNeeded()
         }
     }
 })
 
-// Watch for contact changes
+// Watch contact change, load messages dari backend
 watch(() => props.selectedContact, async (newContact) => {
     if (newContact) {
-        messages.value = []
         await loadMessages()
     }
 }, { immediate: true })
 
-// Lifecycle
 onMounted(() => {
-    // Auto-refresh messages every 5 seconds for selected contact
+    // Auto-refresh messages setiap 30 detik
     const interval = setInterval(async () => {
         if (props.selectedContact && !loading.value) {
             await loadMessages()
         }
-    }, 5000)
-
-    // Cleanup interval on unmount
-    return () => {
-        clearInterval(interval)
-        if (typingTimeout.value) {
-            clearTimeout(typingTimeout.value)
-        }
-    }
+    }, 30000)
+    return () => clearInterval(interval)
 })
 </script>
 

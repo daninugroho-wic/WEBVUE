@@ -1,164 +1,251 @@
 const { IgApiClient } = require('instagram-private-api');
-const InstagramSession = require('../models/InstagramSession');
 
-class InstagramService {
-  constructor() {
-    this.ig = new IgApiClient();
-    this.loggedIn = false;
-    this.challenge = null;
-    this.sessionDoc = null;
-    this.challengeOngoing = false; // Flag untuk log challenge hanya sekali
-  }
+const Conversation = require('../models/Conversation');
+const Message = require('../models/Message');
 
-  // Simpan session ke MongoDB
-  async saveSession() {
-    try {
-      if (!this.sessionDoc) {
-        this.sessionDoc = new InstagramSession({ sessionData: this.ig.state.serialize() });
-      } else {
-        this.sessionDoc.sessionData = this.ig.state.serialize();
-        this.sessionDoc.updatedAt = new Date();
-      }
-      await this.sessionDoc.save();
-      console.log('Instagram session disimpan ke database');
-    } catch (error) {
-      console.error('Gagal menyimpan session:', error);
-    }
-  }
+// ==================== GLOBAL VARIABLES ====================
+let ig = null;
+let loggedIn = false;
+let currentUsername = null;
 
-  // Load session dari MongoDB
-  async loadSession() {
-    try {
-      this.sessionDoc = await InstagramSession.findOne();
-      if (this.sessionDoc && this.sessionDoc.sessionData) {
-        await this.ig.state.deserialize(this.sessionDoc.sessionData);
-        console.log('Instagram session dimuat dari database');
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error('Gagal memuat session:', error);
-      return false;
-    }
-  }
+// ==================== MESSAGE HANDLERS ====================
 
-  // Login ke Instagram
-  async login(username, password) {
-    this.ig.state.generateDevice(username);
+// Handle pesan DM masuk
+async function handleIncomingDM(thread) {
+  try {
+    if (!thread.last_permanent_item?.text) return;
 
-    const sessionExists = await this.loadSession();
+    const senderId = thread.users[0]?.pk?.toString();
+    const senderName = thread.users[0]?.username || senderId;
+    const messageText = thread.last_permanent_item.text;
 
-    try {
-      if (sessionExists) {
-        await this.loginWithExistingSession();
-      } else {
-        await this.loginWithCredentials(username, password);
-      }
+    console.log('📨 Instagram DM masuk dari:', senderName);
+    console.log('💬 Isi pesan:', messageText);
 
-      this.checkDMs(); // Cek DM setelah login berhasil
-      return { success: true };
-    } catch (e) {
-      return this.handleLoginError(e);
-    }
-  }
+    // Cari atau buat conversation
+    let conversation = await Conversation.findOne({
+      platform: 'instagram',
+      contact_id: senderId
+    });
 
-  // Menggunakan session yang sudah ada jika valid
-  async loginWithExistingSession() {
-    try {
-      await this.ig.account.currentUser();
-      this.loggedIn = true;
-      console.log('Instagram login berhasil menggunakan session yang sudah ada');
-    } catch (err) {
-      if (err.name === 'IgLoginRequiredError') {
-        console.log('Session tidak valid, login ulang dengan username/password');
-        await this.loginWithCredentials(username, password);
-      } else {
-        throw err;
-      }
-    }
-  }
-
-  // Login menggunakan username dan password
-  async loginWithCredentials(username, password) {
-    await this.ig.account.login(username, password);
-    this.loggedIn = true;
-    await this.saveSession();
-    console.log('Instagram login berhasil dengan username/password');
-  }
-
-  // Menangani error saat login (termasuk checkpoint)
-  async handleLoginError(e) {
-    if (e.name === 'IgCheckpointError') {
-      this.challenge = e.response.body.challenge;
-      console.log('Challenge Required:', this.challenge);
-      return { success: false, challenge: this.challenge };
-    }
-    throw e;
-  }
-
-  // Pilih metode challenge (sms/email)
-  async selectChallengeMethod(method) {
-    if (!this.challenge) throw new Error('Tidak ada challenge untuk diselesaikan');
-    await this.ig.challenge.selectVerifyMethod(method);
-  }
-
-  // Kirim kode challenge yang didapat user
-  async sendChallengeCode(code) {
-    try {
-      await this.ig.challenge.sendSecurityCode(code);
-      this.loggedIn = true;
-      this.challenge = null;
-      await this.saveSession();
-      console.log('Challenge berhasil diselesaikan, login selesai');
-      this.checkDMs(); // Cek DM setelah berhasil login
-    } catch (error) {
-      console.error('Gagal mengirim kode challenge:', error);
-    }
-  }
-
-  // Polling untuk cek DM dengan flag log challenge sekali saja
-  async checkDMs() {
-    if (!this.loggedIn) return;
-
-    setInterval(async () => {
-      try {
-        const inbox = await this.ig.feed.directInbox().items();
-        inbox.forEach(thread => {
-          console.log(`Pesan DM dari ${thread.thread_id}: ${thread.last_permanent_item.text}`);
-        });
-
-        if (this.challengeOngoing) {
-          this.challengeOngoing = false;
-          console.log('Challenge sudah selesai, polling dilanjutkan normal.');
-        }
-      } catch (err) {
-        this.handleDMsError(err);
-      }
-    }, 5000);
-  }
-
-  // Penanganan error saat memeriksa DM
-  async handleDMsError(err) {
-    if (err.name === 'IgCheckpointError') {
-      if (!this.challengeOngoing) {
-        this.challengeOngoing = true;
-        console.error('Challenge Required saat cek DM:', err.response.body.challenge);
-      }
-      // Abaikan log challenge selanjutnya agar tidak spam terminal
+    if (!conversation) {
+      conversation = new Conversation({
+        platform: 'instagram',
+        contact_id: senderId,
+        contact_name: senderName,
+        instagram_id: senderId,
+        last_message: messageText,
+        last_message_time: new Date()
+      });
+      console.log('✅ Conversation Instagram baru dibuat');
     } else {
-      console.error('Gagal mengambil DM Instagram:', err);
+      conversation.contact_name = senderName;
+      conversation.last_message = messageText;
+      conversation.last_message_time = new Date();
     }
-  }
 
-  // Kirim DM ke user tertentu
-  async sendDM(userId, message) {
-    try {
-      await this.ig.directThread(userId).broadcastText(message);
-      console.log(`Pesan DM terkirim ke ${userId}`);
-    } catch (err) {
-      console.error('Gagal mengirim pesan DM:', err);
+    await conversation.save();
+
+    // Simpan pesan ke database
+    const newMessage = new Message({
+      platform: 'instagram',
+      conversation_id: conversation._id,
+      sender_id: senderId,
+      receiver_id: currentUsername,
+      text: messageText,
+      status: 'received'
+    });
+
+    await newMessage.save();
+
+    console.log('✅ Pesan Instagram disimpan ke database');
+
+    // Emit real-time update (jika ada socket.io)
+    if (global.io) {
+      global.io.emit('new-instagram-message', {
+        conversation_id: conversation._id,
+        message_id: newMessage._id,
+        sender_id: senderId,
+        sender_name: senderName,
+        text: messageText,
+        timestamp: newMessage.createdAt,
+        platform: 'instagram'
+      });
     }
+
+  } catch (error) {
+    console.error('❌ Error handling Instagram DM:', error);
   }
 }
 
-module.exports = new InstagramService();
+// Kirim DM Instagram
+async function sendInstagramDM(userId, messageText) {
+  try {
+    if (!loggedIn || !ig) {
+      throw new Error('Instagram belum login');
+    }
+
+    console.log('📤 Mengirim DM Instagram ke:', userId);
+
+    // Kirim DM
+    const thread = ig.entity.directThread([userId]);
+    await thread.broadcastText(messageText);
+
+    // Cari atau buat conversation
+    let conversation = await Conversation.findOne({
+      platform: 'instagram',
+      contact_id: userId
+    });
+
+    if (!conversation) {
+      conversation = new Conversation({
+        platform: 'instagram',
+        contact_id: userId,
+        contact_name: userId,
+        instagram_id: userId,
+        last_message: messageText,
+        last_message_time: new Date()
+      });
+      await conversation.save();
+    }
+
+    // Simpan pesan yang dikirim
+    const newMessage = new Message({
+      platform: 'instagram',
+      conversation_id: conversation._id,
+      sender_id: currentUsername,
+      receiver_id: userId,
+      text: messageText,
+      status: 'sent'
+    });
+
+    await newMessage.save();
+
+    // Update conversation
+    conversation.last_message = messageText;
+    conversation.last_message_time = new Date();
+    await conversation.save();
+
+    console.log('✅ DM Instagram terkirim dan disimpan');
+
+    // Emit real-time update
+    if (global.io) {
+      global.io.emit('instagram-message-sent', {
+        conversation_id: conversation._id,
+        message_id: newMessage._id,
+        sender_id: currentUsername,
+        receiver_id: userId,
+        text: messageText,
+        timestamp: newMessage.createdAt,
+        platform: 'instagram'
+      });
+    }
+
+    return { success: true };
+
+  } catch (error) {
+    console.error('❌ Error mengirim DM Instagram:', error);
+    throw error;
+  }
+}
+
+// ==================== LOGIN & AUTHENTICATION ====================
+
+// Login Instagram
+async function loginInstagram(username, password) {
+  try {
+    console.log('🔄 Login Instagram:', username);
+
+    // Initialize Instagram API client
+    ig = new IgApiClient();
+    ig.state.generateDevice(username);
+
+    // Login
+    await ig.account.login(username, password);
+    
+    loggedIn = true;
+    currentUsername = username;
+
+    console.log('✅ Instagram login berhasil');
+
+    // Start checking DMs
+    startDMListener();
+
+    return { success: true };
+
+  } catch (error) {
+    loggedIn = false;
+    
+    // Handle challenge (2FA)
+    if (error.name === 'IgCheckpointError') {
+      console.log('🔐 Instagram Challenge Required');
+      return { 
+        success: false, 
+        challenge: true,
+        challengeData: error.response.body.challenge 
+      };
+    }
+
+    console.error('❌ Instagram login gagal:', error.message);
+    throw error;
+  }
+}
+
+// ==================== DM MONITORING ====================
+
+// Start listening untuk DM baru
+function startDMListener() {
+  if (!loggedIn) return;
+
+  console.log('🔄 Memulai monitoring DM Instagram...');
+
+  // Check DMs setiap 10 detik
+  setInterval(async () => {
+    try {
+      const inbox = await ig.feed.directInbox().items();
+      
+      // Process setiap thread
+      inbox.forEach(thread => {
+        // Skip jika tidak ada pesan baru
+        if (!thread.last_permanent_item?.text) return;
+        
+        // Process pesan masuk
+        handleIncomingDM(thread);
+      });
+
+    } catch (error) {
+      if (error.name === 'IgCheckpointError') {
+        console.error('🔐 Challenge required saat check DM');
+      } else {
+        console.error('❌ Error checking Instagram DM:', error.message);
+      }
+    }
+  }, 10000); // 10 seconds interval
+}
+
+// ==================== STATUS & UTILITY ====================
+
+// Get Instagram status
+function getInstagramStatus() {
+  return {
+    isLoggedIn: loggedIn,
+    username: currentUsername,
+    isReady: ig !== null
+  };
+}
+
+// Logout Instagram
+function logoutInstagram() {
+  loggedIn = false;
+  currentUsername = null;
+  ig = null;
+  console.log('🛑 Instagram logout');
+}
+
+// ==================== EXPORTS ====================
+module.exports = {
+  loginInstagram,
+  sendInstagramDM,
+  getInstagramStatus,
+  logoutInstagram
+};

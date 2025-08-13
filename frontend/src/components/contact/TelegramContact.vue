@@ -3,11 +3,8 @@
     <!-- Bagian atas: Judul & Info Bot -->
     <div>
       <h2 class="text-xl sm:text-2xl font-bold text-blue-900 mb-4 sm:mb-6 border-b border-blue-300 pb-2">TELEGRAM</h2>
-      <div
-        class="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 mb-4 sm:mb-6 bg-blue-100 border border-blue-300 rounded-xl shadow-inner">
-        <div
-          class="w-12 h-12 sm:w-14 sm:h-14 bg-blue-400 rounded-full flex items-center justify-center text-white text-xl sm:text-2xl font-extrabold select-none"
-          aria-label="Bot icon">
+      <div class="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 mb-4 sm:mb-6 bg-blue-100 border border-blue-300 rounded-xl shadow-inner">
+        <div class="w-12 h-12 sm:w-14 sm:h-14 bg-blue-400 rounded-full flex items-center justify-center text-white text-xl sm:text-2xl font-extrabold select-none" aria-label="Bot icon">
           🤖
         </div>
         <div class="min-w-0 flex-1">
@@ -18,7 +15,7 @@
       </div>
     </div>
 
-    <!-- Bagian bawah: Daftar Kontak, ini scrollable -->
+    <!-- Bagian bawah: Daftar Kontak -->
     <div class="flex-grow overflow-y-auto min-h-0 flex flex-col gap-2 sm:gap-3 hide-scrollbar">
       <div v-if="contacts.length === 0" class="flex items-center justify-center h-32 text-gray-500">
         <div class="text-center">
@@ -29,25 +26,26 @@
         </div>
       </div>
 
-      <div v-else v-for="contact in filteredContacts" :key="contact.telegramId"
+      <div v-else v-for="contact in filteredContacts" :key="contact.contact_id"
         class="flex items-center gap-3 sm:gap-4 p-2 sm:p-3 bg-white rounded-xl shadow hover:bg-blue-100 cursor-pointer transition-colors"
-        :class="{ 'bg-blue-100': selectedContactId === contact.telegramId }"
+        :class="{ 'bg-blue-100': selectedContactId === contact.contact_id }"
         role="button" tabindex="0" @click="selectContact(contact)" @keydown.enter="selectContact(contact)">
-        <div
-          class="w-12 h-12 sm:w-14 sm:h-14 bg-blue-300 rounded-full flex items-center justify-center text-blue-900 font-semibold text-lg sm:text-xl select-none flex-shrink-0"
-          aria-label="User icon">
-          {{ (contact.name || contact.telegramId || 'U').charAt(0).toUpperCase() }}
+        <div class="w-12 h-12 sm:w-14 sm:h-14 bg-blue-300 rounded-full flex items-center justify-center text-blue-900 font-semibold text-lg sm:text-xl select-none flex-shrink-0" aria-label="User icon">
+          {{ (contact.contact_name || contact.contact_id || 'U').charAt(0).toUpperCase() }}
         </div>
         <div class="flex flex-col overflow-hidden min-w-0 flex-1">
           <p class="font-semibold text-blue-900 truncate select-text text-sm sm:text-base">
-            {{ contact.name || contact.telegramId }}
+            {{ contact.contact_name || contact.contact_id }}
           </p>
-          <p class="text-blue-700 text-xs sm:text-sm truncate select-text" :title="contact.lastMessage">
-            {{ contact.lastMessage || 'Tidak ada pesan' }}
+          <p class="text-blue-700 text-xs sm:text-sm truncate select-text" :title="contact.last_message">
+            {{ contact.last_message || 'Tidak ada pesan' }}
           </p>
           <p class="text-blue-600 text-xs">
-            {{ formatTime(contact.lastTimestamp) }}
+            {{ formatTime(contact.last_message_time) }}
           </p>
+          <div v-if="contact.unread_count > 0" class="absolute top-2 right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+            {{ contact.unread_count }}
+          </div>
         </div>
       </div>
     </div>
@@ -75,22 +73,12 @@ const filteredContacts = computed(() => {
   
   const query = searchQuery.value.toLowerCase()
   return contacts.value.filter(contact => 
-    contact.name.toLowerCase().includes(query) ||
-    (contact.username && contact.username.toLowerCase().includes(query)) ||
-    contact.telegramId.includes(query)
+    (contact.contact_name && contact.contact_name.toLowerCase().includes(query)) ||
+    contact.contact_id.includes(query)
   )
 })
 
 // Methods
-function getInitials(name) {
-  return name
-    .split(' ')
-    .map(word => word.charAt(0))
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
-}
-
 function formatTime(timestamp) {
   if (!timestamp) return ''
   
@@ -119,17 +107,15 @@ async function fetchContacts() {
     const { data } = await axios.get("http://localhost:3000/api/telegram/contacts")
     
     if (data.success) {
+      // ✅ UPDATE: Sesuaikan dengan response backend
       contacts.value = data.contacts.map(contact => ({
         conversation_id: contact.conversation_id,
-        telegramId: contact.telegramId,
-        name: contact.name || contact.telegramId,
-        username: contact.username,
-        lastMessage: contact.lastMessage,
-        lastTimestamp: contact.lastTimestamp,
-        unreadCount: contact.unreadCount || 0,
-        isBlocked: contact.isBlocked || false,
-        profilePicUrl: contact.profilePicUrl,
-        isOnline: false // TODO: Implement online status
+        contact_id: contact.telegramId,      // Backend: telegramId
+        contact_name: contact.name,          // Backend: name
+        last_message: contact.lastMessage,   // Backend: lastMessage
+        last_message_time: contact.lastTimestamp, // Backend: lastTimestamp
+        unread_count: contact.unreadCount || 0,   // Backend: unreadCount
+        platform: 'telegram'
       }))
       saveContactsToLocalStorage()
       console.log('✅ Telegram contacts loaded:', contacts.value.length)
@@ -142,15 +128,13 @@ async function fetchContacts() {
     if (contacts.value.length === 0) {
       contacts.value = [
         {
-          telegramId: "123456789",
-          name: "Demo User",
-          username: "demo_user",
-          lastMessage: "Hello from Telegram!",
-          lastTimestamp: new Date().toISOString(),
-          unreadCount: 1,
-          isBlocked: false,
-          profilePicUrl: null,
-          isOnline: true
+          conversation_id: "dummy_conv_1",
+          contact_id: "123456789",
+          contact_name: "Demo User",
+          last_message: "Hello from Telegram!",
+          last_message_time: new Date().toISOString(),
+          unread_count: 1,
+          platform: 'telegram'
         }
       ]
     }
@@ -170,26 +154,24 @@ function saveContactsToLocalStorage() {
   localStorage.setItem('telegram_contacts', JSON.stringify(contacts.value))
 }
 
-async function refreshContacts() {
-  await fetchContacts()
-}
-
 function selectContact(contact) {
-  selectedContactId.value = contact.telegramId
+  selectedContactId.value = contact.contact_id
   emit("select-contact", contact)
   
   // Mark as read when selecting contact
-  markContactAsRead(contact.telegramId)
+  markContactAsRead(contact.contact_id)
 }
 
-async function markContactAsRead(telegramId) {
-  const contactIndex = contacts.value.findIndex(c => c.telegramId === telegramId)
-  if (contactIndex !== -1 && contacts.value[contactIndex].unreadCount > 0) {
-    contacts.value[contactIndex].unreadCount = 0
+async function markContactAsRead(contactId) {
+  const contactIndex = contacts.value.findIndex(c => c.contact_id === contactId)
+  if (contactIndex !== -1 && contacts.value[contactIndex].unread_count > 0) {
+    contacts.value[contactIndex].unread_count = 0
     saveContactsToLocalStorage()
-    // Kirim conversation_id ke backend
+    
+    // ✅ UPDATE: Kirim conversation_id ke backend
     const conversationId = contacts.value[contactIndex].conversation_id
     if (!conversationId) return
+    
     try {
       await axios.put(`http://localhost:3000/api/telegram/read/${conversationId}`)
     } catch (error) {
@@ -198,37 +180,38 @@ async function markContactAsRead(telegramId) {
   }
 }
 
-// Watch for new messages
+// ✅ UPDATE: Watch for new messages sesuai backend emit
 watch(() => props.newMessage, (msg) => {
   if (!msg || !msg.sender_id) return
 
-  const contactIndex = contacts.value.findIndex(c => c.telegramId === msg.sender_id || c.telegramId === msg.chat_id)
+  const contactIndex = contacts.value.findIndex(c => 
+    c.contact_id === msg.sender_id || 
+    c.contact_id === msg.chat_id
+  )
 
   if (contactIndex !== -1) {
     // Update existing contact
-    contacts.value[contactIndex].lastMessage = msg.text
-    contacts.value[contactIndex].lastTimestamp = msg.timestamp || new Date().toISOString()
+    contacts.value[contactIndex].last_message = msg.text
+    contacts.value[contactIndex].last_message_time = msg.timestamp || new Date().toISOString()
     
     // Only increment unread if not currently selected
-    if (selectedContactId.value !== contacts.value[contactIndex].telegramId) {
-      contacts.value[contactIndex].unreadCount += 1
+    if (selectedContactId.value !== contacts.value[contactIndex].contact_id) {
+      contacts.value[contactIndex].unread_count += 1
     }
     
     // Move to top
     const updatedContact = contacts.value.splice(contactIndex, 1)[0]
     contacts.value.unshift(updatedContact)
   } else {
-    // Add new contact
+    // ✅ UPDATE: Add new contact sesuai backend structure
     const newContact = {
-      telegramId: msg.sender_id || msg.chat_id,
-      name: msg.sender_name || msg.sender_id,
-      username: msg.username,
-      lastMessage: msg.text,
-      lastTimestamp: msg.timestamp || new Date().toISOString(),
-      unreadCount: 1,
-      isBlocked: false,
-      profilePicUrl: null,
-      isOnline: true
+      conversation_id: msg.conversation_id,
+      contact_id: msg.sender_id || msg.chat_id,
+      contact_name: msg.sender_name || msg.sender_id,
+      last_message: msg.text,
+      last_message_time: msg.timestamp || new Date().toISOString(),
+      unread_count: 1,
+      platform: 'telegram'
     }
     
     contacts.value.unshift(newContact)

@@ -6,6 +6,7 @@ const TelegramSessionSchema = new mongoose.Schema({
     required: true, 
     unique: true, 
     trim: true,
+    maxlength: 50, 
     match: [/^\d{8,10}:[a-zA-Z0-9_-]{35}$/, 'Harap masukkan bot token yang valid'],
     index: true 
   },

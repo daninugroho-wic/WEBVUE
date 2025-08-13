@@ -15,7 +15,7 @@ const handleError = (res, error, customMessage = 'Terjadi kesalahan') => {
 
 // Function untuk mengirim pesan yang disempurnakan
 const sendMessage = async (req, res) => {
-  const { number, message, sender_id = 'user_3' } = req.body;
+  const { number, message, sender_id = '083866474123@c.us' } = req.body;
 
   console.log('📤 Incoming send message request:', {
     number,
@@ -117,8 +117,8 @@ const getMessagesBySender = async (req, res) => {
       status: msg.status,
       send_by: msg.send_by,
       created_at: msg.createdAt,
-      timestamp: msg.createdAt,
-      messageSource: msg.messageSource
+      timestamp: msg.createdAt
+      // ✅ Removed messageSource dari sini
     }));
 
     console.log(`📋 Retrieved ${formattedMessages.length} messages for sender: ${sender}`);

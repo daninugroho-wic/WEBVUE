@@ -8,13 +8,14 @@ const http = require("http");
 const connectDB = require("./src/config/database");
 const initializeSocket = require("./src/config/socket");
 const initializeServices = require("./src/config/services");
+const telegramService = require("./src/config/telegram"); // ← ADD THIS
 
 // Import routes
 const authRoutes = require("./src/routes/authRoutes");
 const laporanRoutes = require("./src/routes/laporanRoutes");
 const whatsappRoutes = require("./src/routes/whatsappRoutes");
-const teleRoutes = require("./src/routes/teleRoutes");
-const instagramRoutes = require("./src/routes/instagramRoutes"); // ✅ Add this
+const teleRoutes = require("./src/routes/telegramRoutes");
+const instagramRoutes = require("./src/routes/instagramRoutes");
 
 // Inisialisasi app & server
 const app = express();
@@ -38,14 +39,15 @@ app.use((err, req, res, next) => {
 
 // Initialize socket
 const io = initializeSocket(server);
-app.set('io', io); // Set io ke app agar bisa diakses di controller
+app.set('io', io);
+global.io = io; // ← ADD THIS untuk telegram service
 
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/laporan", laporanRoutes);
 app.use("/api/telegram", teleRoutes);
-app.use("/api/instagram", instagramRoutes); // ✅ Add this
-app.use("/", whatsappRoutes); // ✅ GANTI dari chatRoutes
+app.use("/api/instagram", instagramRoutes);
+app.use("/", whatsappRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -57,24 +59,24 @@ app.get('/health', (req, res) => {
       auth: '/api/auth',
       laporan: '/api/laporan', 
       telegram: '/api/telegram',
-      instagram: '/api/instagram', // ✅ Add this
-      whatsapp: '/' // ✅ UPDATE description
+      instagram: '/api/instagram',
+      whatsapp: '/'
     }
   });
 });
 
 // Connect to database and start server
 connectDB().then(() => {
-  server.listen(PORT, () => {
+  server.listen(PORT, async () => {
     console.log(`✅ Server running on port ${PORT}`);
     console.log(`🌐 Health check: http://localhost:${PORT}/health`);
     console.log(`📱 Telegram API: http://localhost:${PORT}/api/telegram`);
-    console.log(`📱 WhatsApp API: http://localhost:${PORT}/`); // ✅ UPDATE log message
+    console.log(`📱 WhatsApp API: http://localhost:${PORT}/`);
     
     // Initialize services after server starts
     console.log('🚀 Initializing external services...');
     try {
-      initializeServices();
+      await initializeServices(); // ← ADD await
     } catch (error) {
       console.error('❌ Failed to initialize services:', error);
     }
@@ -84,9 +86,19 @@ connectDB().then(() => {
   process.exit(1);
 });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
+// ✅ ADD: Graceful shutdown untuk Telegram bots
+process.on('SIGTERM', async () => {
   console.log('🔄 SIGTERM received, shutting down gracefully...');
+  await telegramService.shutdown();
+  server.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', async () => {
+  console.log('🔄 SIGINT received, shutting down gracefully...');
+  await telegramService.shutdown();
   server.close(() => {
     console.log('✅ Server closed');
     process.exit(0);
