@@ -7,6 +7,7 @@ const Message = require('../models/Message');
 let ig = null;
 let loggedIn = false;
 let currentUsername = null;
+let dmListenerInterval = null;
 
 // ==================== MESSAGE HANDLERS ====================
 
@@ -151,8 +152,11 @@ async function sendInstagramDM(userId, messageText) {
 
 // ==================== LOGIN & AUTHENTICATION ====================
 
+const IG_USERNAME = process.env.IG_USERNAME;
+const IG_PASSWORD = process.env.IG_PASSWORD;
+
 // Login Instagram
-async function loginInstagram(username, password) {
+async function loginInstagram(username = IG_USERNAME, password = IG_PASSWORD) {
   try {
     console.log('🔄 Login Instagram:', username);
 
@@ -196,11 +200,10 @@ async function loginInstagram(username, password) {
 // Start listening untuk DM baru
 function startDMListener() {
   if (!loggedIn) return;
+  if (dmListenerInterval) clearInterval(dmListenerInterval);
 
   console.log('🔄 Memulai monitoring DM Instagram...');
-
-  // Check DMs setiap 10 detik
-  setInterval(async () => {
+  dmListenerInterval = setInterval(async () => {
     try {
       const inbox = await ig.feed.directInbox().items();
       
@@ -239,6 +242,8 @@ function logoutInstagram() {
   loggedIn = false;
   currentUsername = null;
   ig = null;
+  if (dmListenerInterval) clearInterval(dmListenerInterval);
+  dmListenerInterval = null;
   console.log('🛑 Instagram logout');
 }
 
@@ -247,5 +252,6 @@ module.exports = {
   loginInstagram,
   sendInstagramDM,
   getInstagramStatus,
-  logoutInstagram
+  logoutInstagram,
+  startDMListener
 };

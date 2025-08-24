@@ -29,17 +29,17 @@
         </div>
       </div>
 
-      <div v-else v-for="(contact, index) in contacts" :key="contact.instagramId || index"
+      <div v-else v-for="(contact, index) in contacts" :key="contact.contact_id || index"
         class="flex items-center gap-3 sm:gap-4 p-2 sm:p-3 bg-white rounded-xl shadow hover:bg-pink-100 cursor-pointer transition-colors"
         role="button" tabindex="0" @click="selectContact(contact)" @keydown.enter="selectContact(contact)">
         <div
           class="w-12 h-12 sm:w-14 sm:h-14 bg-pink-300 rounded-full flex items-center justify-center text-pink-900 font-semibold text-lg sm:text-xl select-none flex-shrink-0"
           aria-label="User icon">
-          {{ (contact.name || contact.instagramId || 'U').charAt(0).toUpperCase() }}
+          {{ (contact.name || contact.contact_id || 'U').charAt(0).toUpperCase() }}
         </div>
         <div class="flex flex-col overflow-hidden min-w-0 flex-1">
           <p class="font-semibold text-pink-900 truncate select-text text-sm sm:text-base">
-            {{ contact.name || contact.instagramId }}
+            {{ contact.name || contact.contact_id }}
           </p>
           <p class="text-pink-700 text-xs sm:text-sm truncate select-text" :title="contact.lastMessage">
             {{ contact.lastMessage || 'Tidak ada pesan' }}
@@ -61,10 +61,7 @@ const companyInstagram = ref("@perusahaan_official")
 const contacts = ref([])
 
 const emit = defineEmits(["select-contact"])
-
-const props = defineProps({
-  newMessage: Object
-})
+const props = defineProps({ newMessage: Object })
 
 function loadContactsFromLocalStorage() {
   const storedContacts = localStorage.getItem('instagram_contacts')
@@ -78,12 +75,12 @@ async function fetchContacts() {
     const { data } = await axios.get("http://localhost:3000/api/instagram/contacts")
     if (data.success) {
       contacts.value = data.contacts.map(contact => ({
-        instagramId: contact.instagramId,
-        name: contact.name || contact.instagramId,
-        username: contact.username,
+        conversation_id: contact.conversation_id,
+        contact_id: contact.contact_id,
+        name: contact.name || contact.contact_id,
         lastMessage: contact.lastMessage || 'Tidak ada pesan',
         lastTimestamp: contact.lastTimestamp || null,
-        isBlocked: contact.isBlocked || false
+        unreadCount: contact.unreadCount || 0
       }))
       saveContactsToLocalStorage()
     }
@@ -98,35 +95,36 @@ function saveContactsToLocalStorage() {
 
 async function saveContactToDatabase(contact) {
   try {
-    await axios.post("http://localhost:3000/api/instagram/contacts", contact)
+    await axios.post("http://localhost:3000/api/instagram/contacts", {
+      contact_id: contact.contact_id,
+      name: contact.name,
+      last_message: contact.lastMessage,
+      last_message_time: contact.lastTimestamp
+    })
   } catch (error) {
     console.error("Gagal menyimpan kontak baru ke database:", error)
   }
 }
 
-// Watcher untuk pesan baru
 watch(() => props.newMessage, (msg) => {
   if (!msg || !msg.sender_id) return
 
-  const idx = contacts.value.findIndex((c) => c.instagramId === msg.sender_id)
+  const idx = contacts.value.findIndex((c) => c.contact_id === msg.sender_id)
 
   if (idx !== -1) {
-    // Update pesan terakhir
     contacts.value[idx].lastMessage = msg.text
     contacts.value[idx].lastTimestamp = msg.timestamp
-
-    // Pindahkan ke atas
     const updatedContact = contacts.value.splice(idx, 1)[0]
     contacts.value.unshift(updatedContact)
     saveContactsToLocalStorage()
   } else {
-    // Kontak baru
     const newContact = {
-      instagramId: msg.sender_id,
+      conversation_id: msg.conversation_id,
+      contact_id: msg.sender_id,
       lastMessage: msg.text,
       lastTimestamp: msg.timestamp,
-      name: null,
-      isBlocked: false
+      name: msg.sender_name || msg.sender_id,
+      unreadCount: 0
     }
     contacts.value.unshift(newContact)
     saveContactsToLocalStorage()
@@ -136,6 +134,14 @@ watch(() => props.newMessage, (msg) => {
 
 function selectContact(contact) {
   emit("select-contact", contact)
+}
+
+const formatTime = (timestamp) => {
+  if (!timestamp) return ''
+  return new Date(timestamp).toLocaleTimeString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 
 onMounted(() => {

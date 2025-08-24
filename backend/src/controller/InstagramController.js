@@ -150,7 +150,7 @@ class InstagramController {
                 });
             }
 
-            const result = await instagramService.login(username, password);
+            const result = await instagramService.loginInstagram(username, password);
             
             if (result.success) {
                 res.json({
@@ -183,7 +183,7 @@ class InstagramController {
 
             const contacts = conversations.map(conv => ({
                 conversation_id: conv._id,
-                instagramId: conv.contact_id,
+                contact_id: conv.contact_id, // gunakan contact_id sesuai model
                 name: conv.contact_name || conv.contact_id,
                 lastMessage: conv.last_message || 'Tidak ada pesan',
                 lastTimestamp: conv.last_message_time,
@@ -236,18 +236,17 @@ class InstagramController {
     // Send Instagram DM
     static async sendMessage(req, res) {
         try {
-            const { user_id, message } = req.body;
-            
-            if (!user_id || !message) {
+            const { user_id, message, sender_id } = req.body;
+             console.log('Body request:', req.body);
+
+            if (!user_id || !message || !sender_id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'user_id dan message diperlukan'
+                    error: 'user_id, message, dan sender_id diperlukan'
                 });
             }
-
-            // Send via Instagram service
-            await instagramService.sendDM(user_id, message);
-
+          console.log({ user_id, message, sender_id });
+            await instagramService.sendInstagramDM(user_id, message);
             res.json({
                 success: true,
                 message: 'Pesan Instagram berhasil dikirim'
@@ -258,6 +257,26 @@ class InstagramController {
                 success: false,
                 error: 'Gagal mengirim pesan Instagram'
             });
+        }
+    }
+
+    // Get Instagram status
+    static async getStatus(req, res) {
+        try {
+            const status = await instagramService.getInstagramStatus();
+            res.json({ success: true, status });
+        } catch (error) {
+            res.status(500).json({ success: false, error: 'Gagal mengambil status Instagram' });
+        }
+    }
+
+    // Logout from Instagram
+    static async logout(req, res) {
+        try {
+            await instagramService.logoutInstagram();
+            res.json({ success: true, message: 'Logout Instagram berhasil' });
+        } catch (error) {
+            res.status(500).json({ success: false, error: 'Gagal logout Instagram' });
         }
     }
 }

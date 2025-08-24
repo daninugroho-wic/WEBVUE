@@ -1,5 +1,6 @@
 const { initializeWhatsApp } = require("./whatsapp");
 const telegramService = require("./telegram");
+const instagramService = require("./instagram");
 
 // ==================== SERVICE INITIALIZATION ====================
 
@@ -18,6 +19,15 @@ const initializeServices = async () => {
     // Initialize Telegram
     console.log("🤖 Initializing Telegram...");
     await telegramService.initializeFromEnv();
+
+    // Initialize Instagram
+    console.log("📸 Initializing Instagram...");
+    if (instagramService.loginInstagram) {
+      await instagramService.loginInstagram();
+    }
+    if (instagramService.startDMListener) {
+      instagramService.startDMListener();
+    }
 
     console.log("✅ All services initialized successfully");
   } catch (error) {

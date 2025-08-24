@@ -3,8 +3,7 @@
         <!-- Chat Header -->
         <div v-if="selectedContact" class="bg-white border-b border-pink-200 p-4">
             <div class="flex items-center space-x-3">
-                <div
-                    class="w-10 h-10 bg-pink-500 rounded-full flex items-center justify-center text-white font-medium">
+                <div class="w-10 h-10 bg-pink-500 rounded-full flex items-center justify-center text-white font-medium">
                     {{ selectedContact.name ? selectedContact.name.charAt(0).toUpperCase() : 'U' }}
                 </div>
                 <div>
@@ -34,7 +33,7 @@
 
             <!-- Messages -->
             <div v-else class="space-y-3">
-                <div v-for="message in messages" :key="message.message_id" :class="[ 
+                <div v-for="message in messages" :key="message._id" :class="[
                     'flex',
                     message.sender_id === currentUserId ? 'justify-end' : 'justify-start'
                 ]">
@@ -47,7 +46,7 @@
                         <p class="text-sm">{{ message.text }}</p>
                         <div class="flex justify-end mt-1">
                             <span class="text-xs opacity-75">
-                                {{ formatTime(message.timestamp || message.created_at) }}
+                                {{ formatTime(message.created_at) }}
                             </span>
                         </div>
                     </div>
@@ -87,17 +86,23 @@ const inputMessage = ref("")
 const currentUserId = "user_3"
 const chatContainer = ref(null)
 const isUserNearBottom = ref(true)
+const isLoading = ref(false)
 
 // Watcher untuk pesan baru
 watch(() => props.newMessage, async (val) => {
-    if (val && val.message_id && props.selectedContact && val.sender_id === props.selectedContact.contactNumber) {
-        if (!messages.value.find((m) => m.message_id === val.message_id)) {
+    if (
+        val &&
+        val.message_id &&
+        props.selectedContact &&
+        val.sender_id === props.selectedContact.conversation_id
+    ) {
+        if (!messages.value.find((m) => m._id === val.message_id)) {
             messages.value.push({
-                message_id: val.message_id,
+                _id: val.message_id,
                 sender_id: val.sender_id,
+                receiver_id: val.receiver_id,
                 text: val.text,
-                status: val.status || 'received',
-                timestamp: val.timestamp || new Date()
+                created_at: val.timestamp || new Date().toISOString()
             })
             await nextTick()
             scrollToBottomIfNeeded()
@@ -107,16 +112,18 @@ watch(() => props.newMessage, async (val) => {
 
 // Watcher untuk kontak yang dipilih
 watch(() => props.selectedContact, async (newContact) => {
-    if (!newContact || !newContact.contactNumber) {
+    if (!newContact || !newContact.conversation_id) {
         messages.value = []
         return
     }
     try {
-        const { data } = await axios.get(`http://localhost:3000/api/instagram/messages?sender=${newContact.contactNumber}`)
+        isLoading.value = true
+        const { data } = await axios.get(`http://localhost:3000/api/instagram/messages?conversation_id=${newContact.conversation_id}`)
         if (data.success) {
             messages.value = data.messages.map((msg) => ({
-                message_id: msg._id,
+                _id: msg._id,
                 sender_id: String(msg.sender_id),
+                receiver_id: String(msg.receiver_id),
                 text: msg.text,
                 created_at: msg.created_at
             }))
@@ -125,6 +132,8 @@ watch(() => props.selectedContact, async (newContact) => {
         }
     } catch (error) {
         console.error("Gagal mengambil pesan:", error)
+    } finally {
+        isLoading.value = false
     }
 }, { immediate: true })
 
@@ -152,14 +161,14 @@ const scrollToBottom = () => {
 }
 
 const sendMessage = async () => {
-    if (!inputMessage.value.trim()) return
+    if (!inputMessage.value.trim() || !props.selectedContact) return
 
     const tempMessage = {
-        message_id: `temp_${Date.now()}`,
+        _id: `temp_${Date.now()}`,
         sender_id: currentUserId,
+        receiver_id: props.selectedContact.contact_id,
         text: inputMessage.value,
-        status: "pending",
-        timestamp: new Date().toISOString()
+        created_at: new Date().toISOString()
     }
 
     messages.value.push(tempMessage)
@@ -168,50 +177,30 @@ const sendMessage = async () => {
     scrollToBottomIfNeeded()
 
     try {
-        const userToSend = props.selectedContact ? props.selectedContact.contactNumber : "defaultReceiver"
-        const { data } = await axios.post("http://localhost:3000/instagram/send-message", {
-            username: userToSend,
-            message: tempMessage.text,
+        console.log({
+            user_id: props.selectedContact?.contact_id,
+            message: inputMessage.value,
             sender_id: currentUserId
+        });
+        await axios.post("http://localhost:3000/api/instagram/send", {
+            user_id: props.selectedContact.contact_id,
+            message: inputMessage.value,                   
+            sender_id: currentUserId                         
         })
-
-        if (data.success) {
-            tempMessage.status = "sent"
-            setTimeout(() => {
-                tempMessage.status = "delivered"
-                setTimeout(() => {
-                    tempMessage.status = "read"
-                }, 2000)
-            }, 1000)
-        }
     } catch (error) {
         console.error("Gagal mengirim pesan:", error)
-        tempMessage.status = "failed"
     }
 }
 
+const formatTime = (timestamp) => {
+    if (!timestamp) return ''
+    return new Date(timestamp).toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit'
+    })
+}
+
 onMounted(() => {
-    // Polling untuk pesan baru setiap 3 detik
-    setInterval(async () => {
-        try {
-            const { data } = await axios.get("http://localhost:3000/instagram/receive-message")
-            if (data.success) {
-                const existingIds = new Set(messages.value.map((m) => m.message_id))
-                data.messages.forEach((message) => {
-                    if (!existingIds.has(message._id)) {
-                        messages.value.push({
-                            message_id: message._id,
-                            sender_id: String(message.sender_id),
-                            text: message.text,
-                            created_at: message.created_at
-                        })
-                    }
-                })
-            }
-        } catch (error) {
-            console.error("Gagal mengambil pesan masuk:", error)
-        }
-    }, 3000)
 })
 </script>
 
@@ -225,12 +214,10 @@ onMounted(() => {
     scrollbar-width: none;
 }
 
-/* Smooth scrolling */
 .overflow-y-auto {
     scroll-behavior: smooth;
 }
 
-/* Custom scrollbar */
 .overflow-y-auto::-webkit-scrollbar {
     width: 6px;
 }

@@ -32,18 +32,18 @@ onMounted(() => {
     console.log('Connected to backend socket:', socket.id)
   })
 
-  socket.on('new-instagram-message', (message) => {
+  socket.on('instagram-message-sent', (message) => {
     console.log('Pesan instagram baru diterima:', message)
     newMessage.value = message
 
-    if (!selectedContact.value || selectedContact.value.contactNumber !== message.sender_id) {
-      selectedContact.value = { contactNumber: message.sender_id }
+    if (!selectedContact.value || selectedContact.value.instagramId !== message.sender_id) {
+      selectedContact.value = { instagramId: message.sender_id }
     }
   })
 })
 
 onUnmounted(() => {
-  socket.off('new-instagram-message')
+  socket.off('instagram-message-sent')
   socket.disconnect()
 })
 
