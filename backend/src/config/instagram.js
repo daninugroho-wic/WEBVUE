@@ -9,6 +9,9 @@ let loggedIn = false;
 let currentUsername = null;
 let dmListenerInterval = null;
 
+// TAMBAHAN: Track pesan yang sudah diproses
+const processedMessages = new Map(); // threadId -> lastMessageTimestamp
+
 // ==================== MESSAGE HANDLERS ====================
 
 // Handle pesan DM masuk
@@ -16,12 +19,43 @@ async function handleIncomingDM(thread) {
   try {
     if (!thread.last_permanent_item?.text) return;
 
+    const threadId = thread.thread_id;
     const senderId = thread.users[0]?.pk?.toString();
     const senderName = thread.users[0]?.username || senderId;
     const messageText = thread.last_permanent_item.text;
+    const messageTimestamp = thread.last_permanent_item.timestamp;
+
+    // PERBAIKAN: Skip jika pesan sudah diproses
+    const lastProcessedTimestamp = processedMessages.get(threadId);
+    if (lastProcessedTimestamp && messageTimestamp <= lastProcessedTimestamp) {
+      return; // Pesan sudah diproses sebelumnya
+    }
+
+    // PERBAIKAN: Skip jika pesan dari diri sendiri
+    if (senderId === currentUsername || thread.last_permanent_item.user_id?.toString() === currentUsername) {
+      processedMessages.set(threadId, messageTimestamp);
+      return;
+    }
 
     console.log('📨 Instagram DM masuk dari:', senderName);
     console.log('💬 Isi pesan:', messageText);
+    console.log('🕐 Timestamp:', new Date(messageTimestamp * 1000));
+
+    // Update processed messages tracker
+    processedMessages.set(threadId, messageTimestamp);
+
+    // Cek apakah pesan sudah ada di database
+    const existingMessage = await Message.findOne({
+      platform: 'instagram',
+      sender_id: senderId,
+      text: messageText,
+      createdAt: { $gte: new Date(Date.now() - 60000) } // 1 menit terakhir
+    });
+
+    if (existingMessage) {
+      console.log('⚠️ Pesan sudah ada di database, skip...');
+      return;
+    }
 
     // Cari atau buat conversation
     let conversation = await Conversation.findOne({
@@ -88,8 +122,11 @@ async function sendInstagramDM(userId, messageText) {
 
     console.log('📤 Mengirim DM Instagram ke:', userId);
 
+    // PERBAIKAN: Pastikan userId dalam format yang benar
+    const userPk = typeof userId === 'string' ? userId : userId.toString();
+    
     // Kirim DM
-    const thread = ig.entity.directThread([userId]);
+    const thread = ig.entity.directThread([userPk]);
     await thread.broadcastText(messageText);
 
     // Cari atau buat conversation
@@ -142,11 +179,11 @@ async function sendInstagramDM(userId, messageText) {
       });
     }
 
-    return { success: true };
+    return { success: true, message_id: newMessage._id };
 
   } catch (error) {
     console.error('❌ Error mengirim DM Instagram:', error);
-    throw error;
+    return { success: false, error: error.message };
   }
 }
 
@@ -171,6 +208,9 @@ async function loginInstagram(username = IG_USERNAME, password = IG_PASSWORD) {
     currentUsername = username;
 
     console.log('✅ Instagram login berhasil');
+
+    // PERBAIKAN: Clear processed messages saat login ulang
+    processedMessages.clear();
 
     // Start checking DMs
     startDMListener();
@@ -203,18 +243,18 @@ function startDMListener() {
   if (dmListenerInterval) clearInterval(dmListenerInterval);
 
   console.log('🔄 Memulai monitoring DM Instagram...');
+  
+  // PERBAIKAN: Inisialisasi dengan thread yang sudah ada
+  initializeProcessedMessages();
+  
   dmListenerInterval = setInterval(async () => {
     try {
       const inbox = await ig.feed.directInbox().items();
       
       // Process setiap thread
-      inbox.forEach(thread => {
-        // Skip jika tidak ada pesan baru
-        if (!thread.last_permanent_item?.text) return;
-        
-        // Process pesan masuk
-        handleIncomingDM(thread);
-      });
+      for (const thread of inbox) {
+        await handleIncomingDM(thread);
+      }
 
     } catch (error) {
       if (error.name === 'IgCheckpointError') {
@@ -223,7 +263,24 @@ function startDMListener() {
         console.error('❌ Error checking Instagram DM:', error.message);
       }
     }
-  }, 10000); // 10 seconds interval
+  }, 15000); // PERBAIKAN: Increase interval to 15 seconds
+}
+
+// TAMBAHAN: Initialize processed messages untuk thread yang sudah ada
+async function initializeProcessedMessages() {
+  try {
+    const inbox = await ig.feed.directInbox().items();
+    
+    for (const thread of inbox) {
+      if (thread.last_permanent_item?.timestamp) {
+        processedMessages.set(thread.thread_id, thread.last_permanent_item.timestamp);
+      }
+    }
+    
+    console.log(`📋 Initialized ${processedMessages.size} processed message timestamps`);
+  } catch (error) {
+    console.error('❌ Error initializing processed messages:', error);
+  }
 }
 
 // ==================== STATUS & UTILITY ====================
@@ -233,7 +290,8 @@ function getInstagramStatus() {
   return {
     isLoggedIn: loggedIn,
     username: currentUsername,
-    isReady: ig !== null
+    isReady: ig !== null,
+    processedThreads: processedMessages.size
   };
 }
 
@@ -244,6 +302,10 @@ function logoutInstagram() {
   ig = null;
   if (dmListenerInterval) clearInterval(dmListenerInterval);
   dmListenerInterval = null;
+  
+  // PERBAIKAN: Clear processed messages saat logout
+  processedMessages.clear();
+  
   console.log('🛑 Instagram logout');
 }
 

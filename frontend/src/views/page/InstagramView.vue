@@ -32,18 +32,30 @@ onMounted(() => {
     console.log('Connected to backend socket:', socket.id)
   })
 
-  socket.on('instagram-message-sent', (message) => {
-    console.log('Pesan instagram baru diterima:', message)
+  socket.on('new-instagram-message', (message) => {
+    console.log('📨 Pesan instagram baru diterima:', message)
+    
+    // PERBAIKAN: Pastikan message memiliki conversation_id
+    if (!message.conversation_id) {
+      console.warn('⚠️ Message tidak memiliki conversation_id:', message);
+      return;
+    }
+    
     newMessage.value = message
 
-    if (!selectedContact.value || selectedContact.value.instagramId !== message.sender_id) {
-      selectedContact.value = { instagramId: message.sender_id }
+    // Update selected contact jika perlu
+    if (!selectedContact.value || selectedContact.value.contact_id !== message.sender_id) {
+      selectedContact.value = { 
+        contact_id: message.sender_id,
+        conversation_id: message.conversation_id, // TAMBAHAN: Set conversation_id
+        name: message.sender_name || message.sender_id
+      }
     }
   })
 })
 
 onUnmounted(() => {
-  socket.off('instagram-message-sent')
+  socket.off('new-instagram-message') // Update event name
   socket.disconnect()
 })
 

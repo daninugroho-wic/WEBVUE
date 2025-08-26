@@ -208,22 +208,44 @@ class InstagramController {
         try {
             const { conversation_id } = req.query;
             
-            if (!conversation_id) {
+            console.log('Query params received:', req.query);
+            console.log('conversation_id:', conversation_id);
+
+            // PERBAIKAN: Validasi conversation_id
+            if (!conversation_id || conversation_id === 'undefined' || conversation_id === 'null') {
                 return res.status(400).json({
                     success: false,
-                    error: 'conversation_id diperlukan'
+                    error: 'conversation_id diperlukan dan harus valid'
                 });
             }
 
-            const messages = await Message.find({
-                conversation_id,
-                platform: 'instagram'
+            // Validasi format ObjectId
+            const mongoose = require('mongoose');
+            if (!mongoose.Types.ObjectId.isValid(conversation_id)) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Format conversation_id tidak valid'
+                });
+            }
+
+            const messages = await Message.find({ 
+                conversation_id: conversation_id 
             }).sort({ createdAt: 1 });
 
             res.json({
                 success: true,
-                messages
+                messages: messages.map(msg => ({
+                    _id: msg._id,
+                    text: msg.text,
+                    sender_id: msg.sender_id,
+                    receiver_id: msg.receiver_id,
+                    status: msg.status,
+                    platform: msg.platform,
+                    created_at: msg.createdAt,
+                    conversation_id: msg.conversation_id
+                }))
             });
+
         } catch (error) {
             console.error('Error getting Instagram messages:', error);
             res.status(500).json({
@@ -236,26 +258,61 @@ class InstagramController {
     // Send Instagram DM
     static async sendMessage(req, res) {
         try {
-            const { user_id, message, sender_id } = req.body;
-             console.log('Body request:', req.body);
+            console.log('📨 Request body:', req.body);
 
-            if (!user_id || !message || !sender_id) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'user_id, message, dan sender_id diperlukan'
+            const { user_id, message, sender_id } = req.body;
+
+            // PERBAIKAN: Validasi yang lebih detail
+            if (!user_id || user_id.trim() === '') {
+                return res.status(400).json({ 
+                    success: false, 
+                    error: 'user_id diperlukan dan tidak boleh kosong' 
                 });
             }
-          console.log({ user_id, message, sender_id });
-            await instagramService.sendInstagramDM(user_id, message);
-            res.json({
-                success: true,
-                message: 'Pesan Instagram berhasil dikirim'
-            });
+
+            if (!message || message.trim() === '') {
+                return res.status(400).json({ 
+                    success: false, 
+                    error: 'message diperlukan dan tidak boleh kosong' 
+                });
+            }
+
+            if (!sender_id || sender_id.trim() === '') {
+                return res.status(400).json({ 
+                    success: false, 
+                    error: 'sender_id diperlukan dan tidak boleh kosong' 
+                });
+            }
+
+            // Trim message untuk memastikan tidak ada whitespace berlebih
+            const trimmedMessage = message.trim();
+            
+            console.log('📤 Mengirim DM Instagram:');
+            console.log('   - To:', user_id);
+            console.log('   - Message:', trimmedMessage);
+            console.log('   - From:', sender_id);
+
+            // Kirim pesan melalui Instagram service
+            const result = await instagramService.sendInstagramDM(user_id, trimmedMessage);
+            
+            if (result.success) {
+                res.json({
+                    success: true,
+                    message: 'Pesan Instagram berhasil dikirim',
+                    message_id: result.message_id
+                });
+            } else {
+                res.status(500).json({
+                    success: false,
+                    error: result.error || 'Gagal mengirim pesan Instagram'
+                });
+            }
+
         } catch (error) {
-            console.error('Error sending Instagram message:', error);
-            res.status(500).json({
-                success: false,
-                error: 'Gagal mengirim pesan Instagram'
+            console.error('❌ Error sendMessage:', error);
+            res.status(500).json({ 
+                success: false, 
+                error: error.message || 'Gagal mengirim pesan Instagram'
             });
         }
     }

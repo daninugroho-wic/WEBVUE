@@ -11,16 +11,24 @@ const instagramService = require("./instagram");
 const initializeServices = async () => {
   console.log("🚀 Starting services initialization...");
 
+  // Initialize WhatsApp
   try {
-    // Initialize WhatsApp
     console.log("📱 Initializing WhatsApp...");
     initializeWhatsApp();
+  } catch (error) {
+    console.error("❌ WhatsApp initialization failed:", error.message);
+  }
 
-    // Initialize Telegram
+  // Initialize Telegram
+  try {
     console.log("🤖 Initializing Telegram...");
     await telegramService.initializeFromEnv();
+  } catch (error) {
+    console.error("❌ Telegram initialization failed:", error.message);
+  }
 
-    // Initialize Instagram
+  // Initialize Instagram
+  try {
     console.log("📸 Initializing Instagram...");
     if (instagramService.loginInstagram) {
       await instagramService.loginInstagram();
@@ -28,12 +36,11 @@ const initializeServices = async () => {
     if (instagramService.startDMListener) {
       instagramService.startDMListener();
     }
-
-    console.log("✅ All services initialized successfully");
   } catch (error) {
-    console.error("❌ Error initializing services:", error.message);
-    console.log("⚠️ Some services may not be available");
+    console.error("❌ Instagram initialization failed:", error.message);
   }
+
+  console.log("✅ Services initialization completed");
 };
 
 // ==================== EXPORTS ====================

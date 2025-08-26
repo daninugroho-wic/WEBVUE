@@ -75,13 +75,17 @@ async function fetchContacts() {
     const { data } = await axios.get("http://localhost:3000/api/instagram/contacts")
     if (data.success) {
       contacts.value = data.contacts.map(contact => ({
-        conversation_id: contact.conversation_id,
+        conversation_id: contact.conversation_id, // Pastikan ini ada
         contact_id: contact.contact_id,
         name: contact.name || contact.contact_id,
         lastMessage: contact.lastMessage || 'Tidak ada pesan',
         lastTimestamp: contact.lastTimestamp || null,
         unreadCount: contact.unreadCount || 0
       }))
+      
+      // PERBAIKAN: Log untuk debugging
+      console.log('📋 Fetched contacts:', contacts.value);
+      
       saveContactsToLocalStorage()
     }
   } catch (error) {
@@ -112,20 +116,27 @@ watch(() => props.newMessage, (msg) => {
   const idx = contacts.value.findIndex((c) => c.contact_id === msg.sender_id)
 
   if (idx !== -1) {
+    // Update existing contact
     contacts.value[idx].lastMessage = msg.text
     contacts.value[idx].lastTimestamp = msg.timestamp
+    contacts.value[idx].conversation_id = msg.conversation_id // TAMBAHAN: Update conversation_id
+    
     const updatedContact = contacts.value.splice(idx, 1)[0]
     contacts.value.unshift(updatedContact)
     saveContactsToLocalStorage()
   } else {
+    // Create new contact
     const newContact = {
-      conversation_id: msg.conversation_id,
+      conversation_id: msg.conversation_id, // PENTING: Pastikan ini ada
       contact_id: msg.sender_id,
       lastMessage: msg.text,
       lastTimestamp: msg.timestamp,
       name: msg.sender_name || msg.sender_id,
       unreadCount: 0
     }
+    
+    console.log('➕ Adding new contact:', newContact);
+    
     contacts.value.unshift(newContact)
     saveContactsToLocalStorage()
     saveContactToDatabase(newContact)

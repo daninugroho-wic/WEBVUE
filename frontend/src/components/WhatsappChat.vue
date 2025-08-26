@@ -340,22 +340,45 @@ const sendMessage = async () => {
     }
 }
 
-// Scroll functions
+// Scroll functions - Replace existing scroll functions
+let scrollTimeout;
 const handleScroll = () => {
-    const container = chatContainer.value
-    if (!container) return
+    if (scrollTimeout) clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(() => {
+        const container = chatContainer.value;
+        if (!container) return;
+        
+        const threshold = 50;
+        const position = container.scrollTop + container.clientHeight;
+        const height = container.scrollHeight;
+        isUserNearBottom.value = position + threshold >= height;
+    }, 50);
+}
 
-    const threshold = 100
-    const position = container.scrollTop + container.clientHeight
-    const height = container.scrollHeight
-    isUserNearBottom.value = position + threshold >= height
+const scrollToBottomIfNeeded = () => {
+    if (chatContainer.value && isUserNearBottom.value) {
+        setTimeout(() => {
+            chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+        }, 10);
+    }
 }
 
 const scrollToBottom = () => {
-    const container = chatContainer.value
-    if (container) {
-        container.scrollTop = container.scrollHeight
+    if (chatContainer.value) {
+        setTimeout(() => {
+            chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+        }, 10);
     }
+}
+
+// TAMBAHAN: Force scroll function
+const forceScrollToBottom = () => {
+    nextTick(() => {
+        if (chatContainer.value) {
+            chatContainer.value.scrollTop = chatContainer.value.scrollHeight;
+            isUserNearBottom.value = true;
+        }
+    });
 }
 
 // Format waktu
