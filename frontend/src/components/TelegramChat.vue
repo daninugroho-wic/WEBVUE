@@ -1,62 +1,58 @@
 <template>
     <div class="flex flex-col h-full">
-        <!-- Chat Header -->
-        <div v-if="props.selectedContact" class="bg-white border-b border-blue-200 p-4">
+        <!-- =============== CHAT HEADER =============== -->
+        <div v-if="selectedContact" class="bg-white border-b border-blue-200 p-4">
             <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium">
-                    {{ props.selectedContact.contact_name ? props.selectedContact.contact_name.charAt(0).toUpperCase() : 'U' }}
+                    {{ selectedContact.contact_name ? selectedContact.contact_name.charAt(0).toUpperCase() : 'U' }}
                 </div>
                 <div>
                     <h3 class="font-medium text-gray-900">
-                        {{ props.selectedContact.contact_name || props.selectedContact.contact_id }}
+                        {{ selectedContact.contact_name || selectedContact.contact_id }}
                     </h3>
                     <p class="text-sm text-blue-500">
-                        {{ props.selectedContact.contact_id }}
+                        {{ selectedContact.contact_id }}
                     </p>
                 </div>
             </div>
         </div>
 
-        <!-- Chat Messages -->
-        <div v-if="props.selectedContact"
-            ref="chatContainer"
-            @scroll="handleScroll"
-            class="flex-1 overflow-y-auto p-4 space-y-4 bg-blue-50"
-        >
-            <!-- Loading indicator -->
+        <!-- =============== CHAT MESSAGES CONTAINER =============== -->
+        <div v-if="selectedContact" ref="chatContainer" @scroll="handleScroll"
+            class="flex-1 overflow-y-auto p-4 space-y-4 bg-blue-50">
+            <!-- Loading State -->
             <div v-if="loading && messages.length === 0" class="flex justify-center py-4">
                 <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
             </div>
 
-            <!-- No Messages -->
+            <!-- Empty Messages State -->
             <div v-else-if="messages.length === 0" class="flex justify-center py-8">
                 <div class="text-center text-gray-500">
                     <svg class="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                     </svg>
                     <p class="text-sm">Belum ada pesan</p>
                     <p class="text-xs mt-1">Mulai percakapan dengan mengirim pesan</p>
                 </div>
             </div>
 
-            <!-- ✅ UPDATE: Messages sesuai backend response -->
+            <!-- Messages List -->
             <div v-else class="space-y-3">
-                <div v-for="message in messages" :key="message._id"
-                    :class="[
-                        'flex',
-                        message.status === 'sent' ? 'justify-end' : 'justify-start'
-                    ]"
-                >
+                <div v-for="message in messages" :key="message._id" :class="[
+                    'flex',
+                    isMessageFromCurrentUser(message) ? 'justify-end' : 'justify-start'
+                ]">
                     <div :class="[
                         'max-w-xs lg:max-w-md px-4 py-2 rounded-lg shadow',
-                        message.status === 'sent'
+                        isMessageFromCurrentUser(message)
                             ? 'bg-blue-500 text-white'
                             : 'bg-white text-gray-900'
                     ]">
                         <p class="text-sm">{{ message.text }}</p>
                         <div class="flex justify-end mt-1">
                             <span class="text-xs opacity-75">
-                                {{ formatTime(message.createdAt) }}
+                                {{ formatTime(message.createdAt || message.created_at || message.timestamp) }}
                             </span>
                         </div>
                     </div>
@@ -64,23 +60,24 @@
             </div>
         </div>
 
-        <!-- Empty state -->
+        <!-- =============== EMPTY STATE - NO CONTACT SELECTED =============== -->
         <div v-else class="flex-1 flex items-center justify-center bg-white">
             <div class="text-center text-gray-500">
                 <svg class="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
                 <h3 class="text-lg font-medium mb-2">Welcome to Telegram Chat</h3>
                 <p class="text-sm">Pilih kontak untuk memulai chat</p>
             </div>
         </div>
 
-        <!-- Message Input -->
-        <div v-if="props.selectedContact" class="bg-white border-t border-blue-200 p-4">
+        <!-- =============== MESSAGE INPUT =============== -->
+        <div v-if="selectedContact" class="bg-white border-t border-blue-200 p-4">
             <form @submit.prevent="sendMessage" class="flex space-x-3">
                 <input v-model="inputMessage" type="text" placeholder="Ketik pesan..."
                     class="flex-1 border border-blue-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    :disabled="loading" />
+                    :disabled="loading" autocomplete="off" spellcheck="false" />
                 <button type="submit" :disabled="!inputMessage.trim() || loading"
                     class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -97,6 +94,7 @@
 import axios from "axios"
 import { ref, onMounted, nextTick, watch } from "vue"
 
+// =============== PROPS & EMITS ===============
 const props = defineProps({
     newMessage: Object,
     selectedContact: Object
@@ -104,6 +102,7 @@ const props = defineProps({
 
 const emit = defineEmits(['message-sent'])
 
+// =============== REACTIVE STATE ===============
 const messages = ref([])
 const inputMessage = ref("")
 const chatContainer = ref(null)
@@ -111,23 +110,31 @@ const isUserNearBottom = ref(true)
 const loading = ref(false)
 const sending = ref(false)
 
-// Methods
-function formatTime(timestamp) {
+// =============== CONSTANTS ===============
+const currentUserId = "system"
+
+// =============== UTILITY FUNCTIONS ===============
+const formatTime = (timestamp) => {
     if (!timestamp) return ''
     const date = new Date(timestamp)
-    return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+    return date.toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit'
+    })
 }
 
-function handleScroll() {
+// =============== SCROLL FUNCTIONS ===============
+const handleScroll = () => {
     const container = chatContainer.value
     if (!container) return
+
     const threshold = 100
     const position = container.scrollTop + container.clientHeight
     const height = container.scrollHeight
     isUserNearBottom.value = position + threshold >= height
 }
 
-function scrollToBottomIfNeeded() {
+const scrollToBottomIfNeeded = () => {
     const container = chatContainer.value
     if (container && isUserNearBottom.value) {
         nextTick(() => {
@@ -136,7 +143,7 @@ function scrollToBottomIfNeeded() {
     }
 }
 
-function scrollToBottom() {
+const scrollToBottom = () => {
     const container = chatContainer.value
     if (container) {
         nextTick(() => {
@@ -145,147 +152,219 @@ function scrollToBottom() {
     }
 }
 
-// Load messages dari backend
-async function loadMessages() {
+// =============== API FUNCTIONS ===============
+const loadMessages = async () => {
     if (!props.selectedContact) return
+
     loading.value = true
+
     try {
+        console.log('🔄 Loading Telegram messages for:', props.selectedContact.contact_id)
+
         const { data } = await axios.get(`http://localhost:3000/api/telegram/messages`, {
-    params: { sender: props.selectedContact.contact_id }
-})
+            params: { sender: props.selectedContact.contact_id }
+        })
+
         if (data.success) {
-            messages.value = data.messages.map(msg => ({
-                _id: msg._id,
-                text: msg.text,
-                sender_id: msg.sender_id,
-                receiver_id: msg.receiver_id,
-                status: msg.status,
-                createdAt: msg.createdAt,
-                platform: msg.platform
-            }))
+            messages.value = data.messages.map(normalizeMessage)
+            console.log(`✅ Loaded ${messages.value.length} messages`)
+
             await nextTick()
             scrollToBottom()
         }
     } catch (error) {
         console.error('❌ Failed to load messages:', error)
-        // Jangan kosongkan messages.value agar bubble tetap ada
+        // Keep existing messages on error to maintain UI state
     } finally {
         loading.value = false
     }
 }
 
-// Kirim pesan ke backend
-async function sendMessage() {
-    if (!inputMessage.value.trim() || !props.selectedContact || sending.value) return
-
-    const messageText = inputMessage.value.trim()
-    const tempMessage = {
-        _id: `temp_${Date.now()}`,
-        text: messageText,
-        sender_id: 'system',
-        receiver_id: props.selectedContact.contact_id,
-        status: 'sent',
-        createdAt: new Date().toISOString(),
-        platform: 'telegram'
+const sendMessage = async () => {
+    // Validation
+    if (!inputMessage.value.trim() || !props.selectedContact || sending.value) {
+        return
     }
 
-    // Optimistic update: tampilkan bubble pesan langsung
+    const messageText = inputMessage.value.trim()
+
+    // Create temporary message for optimistic UI update
+    const tempMessage = createTempMessage(messageText)
+
+    // Add message to UI immediately
     messages.value.push(tempMessage)
     inputMessage.value = ""
+
     await nextTick()
     scrollToBottomIfNeeded()
 
     sending.value = true
+
     try {
-        const { data } = await axios.post('http://localhost:3000/api/telegram/send', {
+        console.log('📤 Sending Telegram message:', messageText)
+
+        const requestData = {
             chat_id: props.selectedContact.contact_id,
             message: messageText,
-            sender_id: 'system'
-        })
+            sender_id: currentUserId
+        }
+
+        const { data } = await axios.post('http://localhost:3000/api/telegram/send', requestData)
 
         if (data.success) {
-            // Update temp message dengan data dari backend
-            const messageIndex = messages.value.findIndex(m => m._id === tempMessage._id)
-            if (messageIndex !== -1) {
-                messages.value[messageIndex] = {
-                    ...tempMessage,
-                    _id: data.data.message_id,
-                    status: 'sent'
-                }
-            }
+            // Update temp message with real data from backend
+            updateTempMessage(tempMessage._id, data.data.message_id)
+
+            // Emit event for parent component
             emit('message-sent', {
                 message_id: data.data.message_id,
                 text: messageText,
                 chat_id: props.selectedContact.contact_id,
                 timestamp: new Date().toISOString()
             })
+
+            console.log('✅ Telegram message sent successfully')
+        } else {
+            throw new Error(data.error || 'Failed to send message')
         }
     } catch (error) {
         console.error('❌ Failed to send message:', error)
-        // Update status ke failed, bubble tetap ada
-        const messageIndex = messages.value.findIndex(m => m._id === tempMessage._id)
-        if (messageIndex !== -1) {
-            messages.value[messageIndex].status = 'failed'
-        }
+
+        // Update status to failed, keep bubble visible
+        markMessageAsFailed(tempMessage._id)
+
+        // Show error to user
+        alert('Gagal mengirim pesan Telegram: ' + (error.response?.data?.error || error.message))
     } finally {
         sending.value = false
     }
 }
 
-// Terima pesan baru dari socket
+// =============== HELPER FUNCTIONS ===============
+const normalizeMessage = (msg) => ({
+    _id: msg._id,
+    text: msg.text,
+    sender_id: msg.sender_id,
+    receiver_id: msg.receiver_id,
+    status: msg.status,
+    createdAt: msg.createdAt || msg.created_at || msg.timestamp,
+    created_at: msg.created_at || msg.createdAt || msg.timestamp,
+    timestamp: msg.timestamp || msg.created_at || msg.createdAt,
+    platform: msg.platform
+})
+const createTempMessage = (text) => ({
+    _id: `temp_${Date.now()}`,
+    text,
+    sender_id: currentUserId,
+    receiver_id: props.selectedContact.contact_id,
+    status: 'sent',
+    createdAt: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    timestamp: new Date().toISOString(),
+    platform: 'telegram',
+    isTemp: true
+})
+
+const isMessageFromCurrentUser = (message) => {
+    return message.sender_id === currentUserId ||
+        message.status === 'sent' ||
+        message.send_by === 'system'
+}
+
+const updateTempMessage = (tempId, realId) => {
+    const messageIndex = messages.value.findIndex(m => m._id === tempId)
+    if (messageIndex !== -1) {
+        messages.value[messageIndex] = {
+            ...messages.value[messageIndex],
+            _id: realId,
+            status: 'sent',
+            isTemp: false
+        }
+    }
+}
+
+const markMessageAsFailed = (messageId) => {
+    const messageIndex = messages.value.findIndex(m => m._id === messageId)
+    if (messageIndex !== -1) {
+        messages.value[messageIndex].status = 'failed'
+    }
+}
+
+const isMessageForCurrentContact = (newMsg) => {
+    return props.selectedContact && (
+        newMsg.sender_id === props.selectedContact.contact_id ||
+        newMsg.conversation_id === props.selectedContact.conversation_id
+    )
+}
+
+const isMessageDuplicate = (messageId) => {
+    return messages.value.some(m => m._id === messageId)
+}
+
+// =============== WATCHERS ===============
 watch(() => props.newMessage, (newMsg) => {
-    if (!newMsg || !props.selectedContact) return
-    // Hanya tambahkan jika untuk kontak yang aktif
-    if (newMsg.sender_id === props.selectedContact.contact_id ||
-        newMsg.conversation_id === props.selectedContact.conversation_id) {
-        // Cek duplikasi
-        const exists = messages.value.some(m => m._id === newMsg.message_id)
-        if (!exists) {
+    if (!newMsg) return
+
+    console.log('👀 New Telegram message received:', newMsg)
+
+    // Only add if message is for current active contact
+    if (isMessageForCurrentContact(newMsg)) {
+        // Check for duplicates
+        if (!isMessageDuplicate(newMsg.message_id)) {
+            console.log('➕ Adding new message to chat')
+
             messages.value.push({
                 _id: newMsg.message_id || `msg_${Date.now()}`,
                 text: newMsg.text,
                 sender_id: newMsg.sender_id,
-                receiver_id: 'system',
+                receiver_id: currentUserId,
                 status: 'received',
-                createdAt: newMsg.timestamp || new Date().toISOString(),
+                createdAt: newMsg.timestamp || newMsg.created_at || new Date().toISOString(),
+                created_at: newMsg.created_at || newMsg.timestamp || new Date().toISOString(),
+                timestamp: newMsg.timestamp || newMsg.created_at || new Date().toISOString(),
                 platform: 'telegram'
             })
+
             scrollToBottomIfNeeded()
         }
     }
 })
 
-// Watch contact change, load messages dari backend
 watch(() => props.selectedContact, async (newContact) => {
     if (newContact) {
+        console.log('🔄 Contact changed, loading messages for:', newContact.contact_id)
         await loadMessages()
+    } else {
+        messages.value = []
     }
 }, { immediate: true })
 
+// =============== LIFECYCLE ===============
 onMounted(() => {
-    // Auto-refresh messages setiap 30 detik
+    console.log('📱 TelegramChat mounted')
+
+    // Auto-refresh messages every 30 seconds
     const interval = setInterval(async () => {
         if (props.selectedContact && !loading.value) {
+            console.log('🔄 Auto-refreshing messages...')
             await loadMessages()
         }
     }, 30000)
-    return () => clearInterval(interval)
+
+    // Cleanup interval on unmount
+    return () => {
+        console.log('📱 TelegramChat unmounted, clearing interval')
+        clearInterval(interval)
+    }
 })
 </script>
 
 <style scoped>
-/* Auto resize textarea */
-textarea {
-    resize: none;
-    overflow-y: auto;
-}
-
-/* Smooth scrolling */
+/* =============== SCROLLBAR STYLES =============== */
 .overflow-y-auto {
     scroll-behavior: smooth;
 }
 
-/* Custom scrollbar */
 .overflow-y-auto::-webkit-scrollbar {
     width: 6px;
 }
@@ -300,6 +379,12 @@ textarea {
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
+    background: #2563eb;
+}
+
+/* =============== INPUT STYLES =============== */
+textarea {
+    resize: none;
+    overflow-y: auto;
 }
 </style>
