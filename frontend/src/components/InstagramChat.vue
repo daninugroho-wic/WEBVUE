@@ -362,7 +362,6 @@ onMounted(async () => {
 /* =============== SCROLLBAR STYLES =============== */
 .overflow-y-auto {
     scroll-behavior: smooth;
-    scrollbar-width: thin;
 }
 
 .overflow-y-auto::-webkit-scrollbar {
@@ -377,7 +376,6 @@ onMounted(async () => {
 .overflow-y-auto::-webkit-scrollbar-thumb {
     background: #ec4899;
     border-radius: 3px;
-    transition: background-color 0.2s;
 }
 
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {

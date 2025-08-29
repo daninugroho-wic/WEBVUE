@@ -1,4 +1,3 @@
-// config/telegram.js
 const { Telegraf } = require('telegraf');
 
 const Conversation = require('../models/Conversation');
@@ -6,6 +5,7 @@ const Message = require('../models/Message');
 
 // ==================== GLOBAL VARIABLES ====================
 let bot = null;
+let botToken = null; // ✅ FIXED: Store bot token
 
 // ==================== MESSAGE HANDLERS ====================
 
@@ -75,7 +75,7 @@ async function handleIncomingMessage(ctx) {
   }
 }
 
-// Kirim pesan Telegram
+// ✅ FIXED: Kirim pesan Telegram dengan better error handling
 async function sendTelegramMessage(chatId, messageText) {
   try {
     if (!bot) {
@@ -84,21 +84,40 @@ async function sendTelegramMessage(chatId, messageText) {
 
     console.log('📤 Mengirim pesan Telegram ke:', chatId);
 
-    // Kirim pesan
-    await bot.telegram.sendMessage(chatId, messageText);
+    // ✅ FIXED: Convert chatId to number if it's a string number
+    const targetChatId = isNaN(chatId) ? chatId : parseInt(chatId);
+
+    // ✅ FIXED: Better error handling untuk send message
+    let telegramResponse;
+    try {
+      telegramResponse = await bot.telegram.sendMessage(targetChatId, messageText);
+    } catch (telegramError) {
+      console.error('❌ Telegram API Error:', telegramError.message);
+      
+      // Handle specific Telegram errors
+      if (telegramError.code === 400) {
+        throw new Error('Chat tidak ditemukan atau bot diblokir');
+      } else if (telegramError.code === 403) {
+        throw new Error('Bot tidak memiliki akses ke chat ini');
+      } else if (telegramError.code === 429) {
+        throw new Error('Rate limit exceeded, coba lagi nanti');
+      } else {
+        throw new Error(`Telegram API Error: ${telegramError.message}`);
+      }
+    }
 
     // Cari atau buat conversation
     let conversation = await Conversation.findOne({
       platform: 'telegram',
-      contact_id: chatId
+      contact_id: chatId.toString()
     });
 
     if (!conversation) {
       conversation = new Conversation({
         platform: 'telegram',
-        contact_id: chatId,
-        contact_name: chatId,
-        telegram_id: chatId,
+        contact_id: chatId.toString(),
+        contact_name: chatId.toString(),
+        telegram_id: chatId.toString(),
         last_message: messageText,
         last_message_time: new Date()
       });
@@ -110,9 +129,10 @@ async function sendTelegramMessage(chatId, messageText) {
       platform: 'telegram',
       conversation_id: conversation._id,
       sender_id: 'system',
-      receiver_id: chatId,
+      receiver_id: chatId.toString(),
       text: messageText,
-      status: 'sent'
+      status: 'sent',
+      telegram_message_id: telegramResponse.message_id // ✅ FIXED: Add message ID
     });
 
     await newMessage.save();
@@ -130,14 +150,19 @@ async function sendTelegramMessage(chatId, messageText) {
         conversation_id: conversation._id,
         message_id: newMessage._id,
         sender_id: 'system',
-        receiver_id: chatId,
+        receiver_id: chatId.toString(),
         text: messageText,
         timestamp: newMessage.createdAt,
         platform: 'telegram'
       });
     }
 
-    return { success: true };
+    // ✅ FIXED: Return proper response with message_id
+    return { 
+      success: true, 
+      message_id: telegramResponse.message_id,
+      text: messageText
+    };
 
   } catch (error) {
     console.error('❌ Error mengirim pesan Telegram:', error);
@@ -147,6 +172,7 @@ async function sendTelegramMessage(chatId, messageText) {
 
 // ==================== BOT INITIALIZATION ====================
 
+// ✅ FIXED: Better initialization with token storage
 async function initializeFromEnv() {
   try {
     const envToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -157,10 +183,24 @@ async function initializeFromEnv() {
       return;
     }
 
-    console.log('🔄 Initializing Telegram bot from .env...');
+    return await initializeBot(envToken, envDescription);
+
+  } catch (error) {
+    console.error('❌ Error initializing Telegram bot from env:', error);
+    return false;
+  }
+}
+
+// ✅ FIXED: New initialize bot function
+async function initializeBot(token, description = 'Telegram Bot') {
+  try {
+    console.log('🔄 Initializing Telegram bot...');
+
+    // Store bot token
+    botToken = token;
 
     // Initialize bot
-    bot = new Telegraf(envToken);
+    bot = new Telegraf(token);
 
     // Test bot token
     const botInfo = await bot.telegram.getMe();
@@ -172,7 +212,7 @@ async function initializeFromEnv() {
     // Start bot
     if (process.env.NODE_ENV === 'production' && process.env.BASE_URL) {
       // Production: gunakan webhook
-      const webhookUrl = `${process.env.BASE_URL}/api/telegram/webhook`;
+      const webhookUrl = `${process.env.BASE_URL}/api/telegram/webhook/${token}`;
       await bot.telegram.setWebhook(webhookUrl);
       console.log('🔗 Webhook set for production');
     } else {
@@ -181,11 +221,34 @@ async function initializeFromEnv() {
       console.log('🔄 Bot started with polling (development mode)');
     }
 
-    console.log(`✅ Bot "${envDescription}" initialized successfully`);
+    console.log(`✅ Bot "${description}" initialized successfully`);
+    return true;
 
   } catch (error) {
     console.error('❌ Error initializing Telegram bot:', error);
+    bot = null;
+    botToken = null;
+    return false;
   }
+}
+
+// ✅ FIXED: Better webhook handler
+function webhookHandler(token) {
+  return async (req, res) => {
+    try {
+      if (!bot || botToken !== token) {
+        console.error('❌ Bot not initialized or token mismatch');
+        return res.status(400).json({ error: 'Bot not initialized' });
+      }
+
+      await bot.handleUpdate(req.body);
+      res.status(200).json({ success: true });
+
+    } catch (error) {
+      console.error('❌ Webhook error:', error);
+      res.status(500).json({ error: 'Webhook error' });
+    }
+  };
 }
 
 // Webhook handler untuk production
@@ -204,18 +267,56 @@ async function handleWebhook(req, res) {
   }
 }
 
+// ✅ FIXED: Add status function
+async function getTelegramStatus() {
+  try {
+    if (!bot || !botToken) {
+      return {
+        isConnected: false,
+        bot: null,
+        error: 'Bot not initialized'
+      };
+    }
+
+    const botInfo = await bot.telegram.getMe();
+    
+    return {
+      isConnected: true,
+      bot: {
+        id: botInfo.id,
+        username: botInfo.username,
+        first_name: botInfo.first_name
+      },
+      token: botToken.slice(0, 10) + '...'
+    };
+
+  } catch (error) {
+    console.error('❌ Error getting Telegram status:', error);
+    return {
+      isConnected: false,
+      bot: null,
+      error: error.message
+    };
+  }
+}
+
 // Graceful shutdown
 function shutdown() {
   if (bot) {
     console.log('🛑 Shutting down Telegram bot...');
     bot.stop('SIGINT');
+    bot = null;
+    botToken = null;
   }
 }
 
 // ==================== EXPORTS ====================
 module.exports = {
   initializeFromEnv,
+  initializeBot, // ✅ FIXED: Export new function
   sendTelegramMessage,
   handleWebhook,
+  webhookHandler, // ✅ FIXED: Export webhook handler
+  getTelegramStatus, // ✅ FIXED: Export status function
   shutdown
 };
