@@ -148,10 +148,9 @@ class WhatsAppController {
                 whatsapp_id: conv.whatsapp_id,
                 contact_id: conv.contact_id,
                 contact_name: conv.contact_name,
-                phone_number: conv.phone_number,
+                phone_number: conv.contact_id?.replace('@c.us', ''), // ✅ Get from contact_id
                 last_message: conv.last_message || 'Tidak ada pesan',
                 last_message_time: conv.last_message_time || conv.createdAt,
-                is_blocked: conv.is_blocked || false,
                 profile_pic_url: conv.profile_pic_url
             }));
 
@@ -196,7 +195,6 @@ class WhatsAppController {
                 contact_id,
                 contact_name: contact_name || contact_id.replace('@c.us', ''),
                 whatsapp_id: platform === 'whatsapp' ? (whatsapp_id || contact_id) : undefined,
-                phone_number: platform === 'whatsapp' ? (phone_number || contact_id.replace('@c.us', '')) : undefined,
                 last_message_time: new Date()
             });
 
@@ -210,7 +208,6 @@ class WhatsAppController {
                     contact_id: newConversation.contact_id,
                     contact_name: newConversation.contact_name,
                     whatsapp_id: newConversation.whatsapp_id,
-                    phone_number: newConversation.phone_number,
                     last_message_time: newConversation.last_message_time,
                     createdAt: newConversation.createdAt
                 }
@@ -277,6 +274,7 @@ class WhatsAppController {
         }
     }
 
+    // ✅ FIXED: Get messages berdasarkan contact_id (bukan sender_id)
     static async getMessagesBySender(req, res) {
         try {
             const { sender } = req.query;
@@ -288,9 +286,13 @@ class WhatsAppController {
                 });
             }
 
+            // ✅ FIX: Format sender number dengan @c.us jika belum ada
+            const formattedSender = sender.includes('@c.us') ? sender : `${sender}@c.us`;
+
+            // ✅ FIX: Cari conversation berdasarkan contact_id yang formatted
             const conversation = await Conversation.findOne({
                 platform: 'whatsapp',
-                contact_id: sender
+                contact_id: formattedSender
             });
 
             if (!conversation) {

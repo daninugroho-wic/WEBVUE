@@ -182,8 +182,7 @@ class TelegramController {
                 telegramId: conv.contact_id,
                 name: conv.contact_name || conv.contact_id,
                 lastMessage: conv.last_message || 'Tidak ada pesan',
-                lastTimestamp: conv.last_message_time,
-                unreadCount: conv.unread_count || 0
+                lastTimestamp: conv.last_message_time
             }));
 
             console.log(`✅ Found ${contacts.length} Telegram contacts`);
@@ -467,7 +466,6 @@ class TelegramController {
 
             await Conversation.findByIdAndUpdate(
                 conversation_id,
-                { unread_count: 0 }
             );
 
             console.log('✅ Messages marked as read');
@@ -610,13 +608,11 @@ class TelegramController {
                 contact_name: senderName,
                 telegram_id: chatId,
                 last_message: message,
-                last_message_time: new Date(),
-                unread_count: senderName ? 1 : 0 // Only count if incoming message
+                last_message_time: new Date()
             });
         } else {
             if (senderName) {
                 conversation.contact_name = senderName;
-                conversation.unread_count += 1;
             }
             conversation.last_message = message;
             conversation.last_message_time = new Date();

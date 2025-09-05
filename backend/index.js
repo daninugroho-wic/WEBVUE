@@ -85,22 +85,3 @@ connectDB().then(() => {
   console.error("❌ Failed to connect to database:", error);
   process.exit(1);
 });
-
-// ✅ ADD: Graceful shutdown untuk Telegram bots
-process.on('SIGTERM', async () => {
-  console.log('🔄 SIGTERM received, shutting down gracefully...');
-  await telegramService.shutdown();
-  server.close(() => {
-    console.log('✅ Server closed');
-    process.exit(0);
-  });
-});
-
-process.on('SIGINT', async () => {
-  console.log('🔄 SIGINT received, shutting down gracefully...');
-  await telegramService.shutdown();
-  server.close(() => {
-    console.log('✅ Server closed');
-    process.exit(0);
-  });
-});

@@ -9,7 +9,6 @@ const ConversationSchema = new mongoose.Schema({
     instagram_id: { type: String, maxlength: 100 }, 
     last_message: { type: String, maxlength: 800 },
     last_message_time: { type: Date },
-    unread_count: { type: Number, default: 0, min: 0, max: 999 },
 }, {
     timestamps: true,
 });

@@ -242,8 +242,7 @@ class InstagramController {
                 contact_id: conv.contact_id,
                 name: conv.contact_name || conv.contact_id,
                 lastMessage: conv.last_message || 'Tidak ada pesan',
-                lastTimestamp: conv.last_message_time,
-                unreadCount: conv.unread_count || 0
+                lastTimestamp: conv.last_message_time
             }));
 
             console.log(`✅ Found ${contacts.length} Instagram contacts`);

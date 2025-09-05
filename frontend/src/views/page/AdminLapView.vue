@@ -73,7 +73,7 @@
         <!-- Filter Section -->
         <div class="bg-white rounded-xl shadow-lg p-6 no-print">
           <h3 class="text-lg font-semibold text-gray-800 mb-4">Filter Laporan</h3>
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Platform</label>
               <select v-model="filters.platform" @change="applyFilters"
@@ -99,6 +99,14 @@
                 class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 <option value="">Semua Team</option>
                 <option v-for="team in uniqueTeams" :key="team" :value="team">{{ team }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Bulan</label>
+              <select v-model="filters.month" @change="applyFilters"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="">Semua Bulan</option>
+                <option v-for="month in availableMonths" :key="month.value" :value="month.value">{{ month.label }}</option>
               </select>
             </div>
             <div class="flex items-end">
@@ -241,13 +249,44 @@ const error = ref('');
 const filters = ref({
   platform: '',
   status: '',
-  team: ''
+  team: '',
+  month: ''
 });
 
 // Computed
 const uniqueTeams = computed(() => {
   const teams = laporanList.value.map(laporan => laporan.team).filter(Boolean);
   return [...new Set(teams)].sort();
+});
+
+const availableMonths = computed(() => {
+  const months = [];
+  const monthNames = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ];
+  
+  // Ambil bulan unik dari data laporan yang sudah ada
+  const uniqueMonths = new Set();
+  laporanList.value.forEach(laporan => {
+    if (laporan.createdAt) {
+      const date = new Date(laporan.createdAt);
+      const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      uniqueMonths.add(monthYear);
+    }
+  });
+  
+  // Konversi ke format yang dapat digunakan dan urutkan
+  Array.from(uniqueMonths).sort().forEach(monthYear => {
+    const [year, month] = monthYear.split('-');
+    const monthIndex = parseInt(month) - 1;
+    months.push({
+      value: monthYear,
+      label: `${monthNames[monthIndex]} ${year}`
+    });
+  });
+  
+  return months;
 });
 
 // Methods
@@ -316,8 +355,16 @@ function applyFilters() {
     const platformMatch = !filters.value.platform || laporan.platform === filters.value.platform;
     const statusMatch = !filters.value.status || laporan.status === filters.value.status;
     const teamMatch = !filters.value.team || laporan.team === filters.value.team;
+    
+    // Filter bulan dengan format yang benar
+    let monthMatch = true;
+    if (filters.value.month && laporan.createdAt) {
+      const laporanDate = new Date(laporan.createdAt);
+      const laporanMonthYear = `${laporanDate.getFullYear()}-${String(laporanDate.getMonth() + 1).padStart(2, '0')}`;
+      monthMatch = laporanMonthYear === filters.value.month;
+    }
 
-    return platformMatch && statusMatch && teamMatch;
+    return platformMatch && statusMatch && teamMatch && monthMatch;
   });
 }
 
@@ -325,7 +372,8 @@ function clearFilters() {
   filters.value = {
     platform: '',
     status: '',
-    team: ''
+    team: '',
+    month: ''
   };
   filteredLaporans.value = laporanList.value;
 }

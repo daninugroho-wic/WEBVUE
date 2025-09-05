@@ -247,8 +247,6 @@ async function loginInstagram(username = IG_USERNAME, password = IG_PASSWORD) {
 function startDMListener() {
   if (!loggedIn) return;
   if (dmListenerInterval) clearInterval(dmListenerInterval);
-
-  console.log('🔄 Memulai monitoring DM Instagram...');
   
   initializeProcessedMessages();
   

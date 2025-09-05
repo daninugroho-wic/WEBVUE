@@ -107,28 +107,69 @@
         </div>
 
         <!-- =============== MESSAGE INPUT =============== -->
-        <div v-if="selectedContact && !showQRCode" class="bg-white border-t border-green-200 p-4">
-            <form @submit.prevent="sendMessage" class="flex space-x-3">
-                <input 
-                    v-model="inputMessage" 
-                    type="text" 
-                    placeholder="Ketik pesan..."
-                    class="flex-1 border border-green-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    :disabled="isLoading" 
-                    autocomplete="off"
-                    spellcheck="false"
-                />
+        <div v-if="selectedContact && !showQRCode" class="bg-white border-t border-green-200">
+            <!-- Quick Replies Section - Compact Design -->
+            <div class="px-4  border-b border-green-100">
                 <button 
-                    type="submit" 
-                    :disabled="!inputMessage.trim() || isLoading"
-                    class="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                    @click="toggleQuickReplies" 
+                    class="flex items-center justify-between w-full text-left hover:bg-green-50 rounded-lg px-2 py-1 transition-colors"
                 >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    <span class="text-sm font-medium text-gray-700">Balasan Cepat</span>
+                    <svg 
+                        :class="[
+                            'w-4 h-4 text-green-600 transition-transform duration-200',
+                            showQuickReplies ? 'rotate-180' : ''
+                        ]"
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                    >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                     </svg>
                 </button>
-            </form>
+                
+                <!-- Quick Reply Buttons - Collapsible -->
+                <div 
+                    v-show="showQuickReplies" 
+                    class="flex flex-wrap gap-1.5 mt-2 pb-1"
+                >
+                    <button
+                        v-for="(reply, index) in quickReplies"
+                        :key="index"
+                        @click="useQuickReply(reply.message)"
+                        class="inline-flex items-center px-2.5 py-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-md hover:bg-green-100 hover:border-green-300 transition-colors duration-200"
+                    >
+                        <span class="mr-1">{{ reply.icon }}</span>
+                        {{ reply.label }}
+                    </button>
+                </div>
+            </div>
+
+            <!-- Message Input Form -->
+            <div class="p-4">
+                <form @submit.prevent="sendMessage" class="flex space-x-3">
+                    <input 
+                        ref="messageInput"
+                        v-model="inputMessage" 
+                        type="text" 
+                        placeholder="Ketik pesan..."
+                        class="flex-1 border border-green-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        :disabled="isLoading" 
+                        autocomplete="off"
+                        spellcheck="false"
+                    />
+                    <button 
+                        type="submit" 
+                        :disabled="!inputMessage.trim() || isLoading"
+                        class="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 </template>
@@ -156,6 +197,19 @@ const isLoading = ref(false)
 const showQRCode = ref(false)
 const qrData = ref({})
 const qrCanvas = ref(null)
+
+// Quick replies state
+const showQuickReplies = ref(false)
+const quickReplies = ref([
+    { label: 'Selamat datang', message: 'Selamat datang di layanan customer service kami. Ada yang bisa kami bantu hari ini?', icon: '👋' },
+    { label: 'Cek jaringan', message: 'Kami akan mengecek status jaringan di area Anda. Mohon tunggu sebentar ya.', icon: '🔍' },
+    { label: 'Reset koneksi', message: 'Silakan coba restart modem/router Anda selama 30 detik, kemudian nyalakan kembali.', icon: '🔄' },
+    { label: 'Tim teknis', message: 'Tim teknisi kami akan dikirim ke lokasi Anda dalam 2-4 jam kerja.', icon: '🔧' },
+    { label: 'Cek tagihan', message: 'Untuk mengecek tagihan, silakan kirimkan nomor pelanggan atau ID layanan Anda.', icon: '💳' },
+    { label: 'Info paket', message: 'Berikut informasi detail paket internet Anda. Ada yang ingin ditanyakan?', icon: '📋' },
+    { label: 'Pembayaran', message: 'Pembayaran dapat dilakukan melalui ATM, mobile banking, atau datang langsung ke kantor kami.', icon: '💰' },
+    { label: 'Terima kasih', message: 'Terima kasih telah menghubungi kami. Jika ada kendala lain, jangan ragu untuk menghubungi kembali.', icon: '🙏' }
+])
 
 // =============== CONSTANTS ===============
 const currentUserId = "user_3"
@@ -341,6 +395,22 @@ const sendMessage = async () => {
         const errorMessage = getErrorMessage(error)
         alert(errorMessage)
     }
+}
+
+// =============== QUICK REPLY FUNCTIONS ===============
+const toggleQuickReplies = () => {
+    showQuickReplies.value = !showQuickReplies.value
+}
+
+const useQuickReply = (message) => {
+    inputMessage.value = message
+    
+    // Focus pada input setelah memilih quick reply
+    nextTick(() => {
+        if (messageInput.value) {
+            messageInput.value.focus()
+        }
+    })
 }
 
 // =============== HELPER FUNCTIONS ===============

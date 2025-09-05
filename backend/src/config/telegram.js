@@ -5,7 +5,7 @@ const Message = require('../models/Message');
 
 // ==================== GLOBAL VARIABLES ====================
 let bot = null;
-let botToken = null; // ✅ FIXED: Store bot token
+let botToken = null;
 
 // ==================== MESSAGE HANDLERS ====================
 
@@ -15,11 +15,9 @@ async function handleIncomingMessage(ctx) {
     const senderName = ctx.from.first_name + (ctx.from.last_name ? ` ${ctx.from.last_name}` : '');
     const messageText = ctx.message?.text || ctx.message?.caption || '[Media]';
 
-    // Tambahkan log berikut
     console.log(`📨 Pesan Telegram masuk dari: ${senderName}`);
     console.log(`💬 Isi pesan: ${messageText}`);
 
-    // Cari atau buat conversation
     let conversation = await Conversation.findOne({
       platform: 'telegram',
       contact_id: ctx.chat.id.toString()
@@ -84,17 +82,14 @@ async function sendTelegramMessage(chatId, messageText) {
 
     console.log('📤 Mengirim pesan Telegram ke:', chatId);
 
-    // ✅ FIXED: Convert chatId to number if it's a string number
     const targetChatId = isNaN(chatId) ? chatId : parseInt(chatId);
 
-    // ✅ FIXED: Better error handling untuk send message
     let telegramResponse;
     try {
       telegramResponse = await bot.telegram.sendMessage(targetChatId, messageText);
     } catch (telegramError) {
       console.error('❌ Telegram API Error:', telegramError.message);
       
-      // Handle specific Telegram errors
       if (telegramError.code === 400) {
         throw new Error('Chat tidak ditemukan atau bot diblokir');
       } else if (telegramError.code === 403) {
@@ -132,7 +127,7 @@ async function sendTelegramMessage(chatId, messageText) {
       receiver_id: chatId.toString(),
       text: messageText,
       status: 'sent',
-      telegram_message_id: telegramResponse.message_id // ✅ FIXED: Add message ID
+      telegram_message_id: telegramResponse.message_id
     });
 
     await newMessage.save();
@@ -157,7 +152,6 @@ async function sendTelegramMessage(chatId, messageText) {
       });
     }
 
-    // ✅ FIXED: Return proper response with message_id
     return { 
       success: true, 
       message_id: telegramResponse.message_id,
@@ -313,10 +307,10 @@ function shutdown() {
 // ==================== EXPORTS ====================
 module.exports = {
   initializeFromEnv,
-  initializeBot, // ✅ FIXED: Export new function
+  initializeBot, 
   sendTelegramMessage,
   handleWebhook,
-  webhookHandler, // ✅ FIXED: Export webhook handler
-  getTelegramStatus, // ✅ FIXED: Export status function
+  webhookHandler,
+  getTelegramStatus, 
   shutdown
 };

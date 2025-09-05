@@ -6,7 +6,7 @@ const WhatsAppSessionSchema = new mongoose.Schema({
     required: true, 
     unique: true, 
     trim: true, 
-    maxlength: 20, 
+    maxlength: 25, 
     match: [/^\+?[1-9]\d{1,14}$/, 'Harap masukkan nomor telepon yang valid'], 
     index: true 
   },

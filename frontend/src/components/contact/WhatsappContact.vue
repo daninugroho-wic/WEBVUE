@@ -76,11 +76,7 @@
                 {{ contact.lastMessage || 'Tidak ada pesan' }}
               </p>
 
-              <!-- Unread Count Badge -->
-              <div v-if="contact.unreadCount > 0"
-                class="bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] h-5 flex items-center justify-center flex-shrink-0 ml-2">
-                {{ contact.unreadCount > 99 ? '99+' : contact.unreadCount }}
-              </div>
+              
             </div>
 
             <!-- Contact Number -->
@@ -261,8 +257,7 @@ const normalizeContact = (conv) => ({
   phoneNumber: conv.phone_number || conv.contact_id?.replace('@c.us', ''),
   lastMessage: conv.last_message || 'Tidak ada pesan',
   lastTimestamp: conv.last_message_time || null,
-  conversationId: conv._id,
-  unreadCount: conv.unread_count || 0
+  conversationId: conv._id
 })
 
 const findContactIndex = (contactId) => {
@@ -274,11 +269,6 @@ const findContactIndex = (contactId) => {
 const updateExistingContact = (contact, newMessage) => {
   contact.lastMessage = newMessage.text
   contact.lastTimestamp = newMessage.timestamp
-
-  // Increment unread count only if not currently selected
-  if (selectedContactId.value !== (contact.whatsappId || contact.contactNumber)) {
-    contact.unreadCount = (contact.unreadCount || 0) + 1
-  }
 
   // Move to top of list
   const contactIndex = contacts.value.indexOf(contact)
@@ -297,8 +287,7 @@ const createNewContact = (newMessage) => {
     name: newMessage.sender_id.replace('@c.us', ''),
     phoneNumber: newMessage.sender_id.replace('@c.us', ''),
     lastMessage: newMessage.text,
-    lastTimestamp: newMessage.timestamp,
-    unreadCount: 1
+    lastTimestamp: newMessage.timestamp
   }
 
   contacts.value.unshift(newContact)
@@ -315,8 +304,6 @@ const selectContact = (contact) => {
 
   selectedContactId.value = contact.whatsappId || contact.contactNumber
 
-  // Reset unread count when selecting contact
-  contact.unreadCount = 0
   saveContactsToLocalStorage()
 
   emit('select-contact', contact)
